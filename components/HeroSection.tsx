@@ -48,7 +48,7 @@ let SEPARATION = 100, AMOUNTX = 25, AMOUNTY = 25;
       let i = 0;
       let geometry = new THREE.SphereGeometry(1, 32, 32);
       let material = new THREE.MeshBasicMaterial({
-        color: theme === 'dark' ? 0xffffff : theme === 'light' ? 0x000000 : window.matchMedia('(prefers-color-scheme: dark)').matches ? 0xffffff : 0x000000,
+        color: theme === 'dark' ? 0xffffff : theme === 'light' ? 0x000000 : typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 0xffffff : 0x000000,
       });
 
       for (let ix = 0; ix < AMOUNTX; ix++) {
@@ -63,7 +63,7 @@ let SEPARATION = 100, AMOUNTX = 25, AMOUNTY = 25;
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setPixelRatio(window.devicePixelRatio);
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setClearColor(theme === 'dark' ? 0x111827 : theme === 'light' ? 0xf3f3f3 : window.matchMedia('(prefers-color-scheme: dark)').matches ? 0x111827 : 0xf3f3f3,);
+      renderer.setClearColor(theme === 'dark' ? 0x111827 : theme === 'light' ? 0xf3f3f3 : typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 0x111827 : 0xf3f3f3,);
       container.appendChild(renderer.domElement);
 
       document.addEventListener('mousemove', onDocumentMouseMove);
@@ -127,8 +127,8 @@ return (
         transform: `translateY(${scrollPosition * 0.2}px)`,
       }}
     >
-      <h1 className="text-4xl font-bold sm:text-5xl md:text-6xl animate-fade-in" style={{ color: theme === 'dark' ? 'white' : theme === 'light' ? 'black' : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'white' : 'black' }}>Bring your story to life with Story time Africa</h1>
-      <p className="mt-4 text-lg sm:text-xl md:text-2xl animate-fade-in delay-100" style={{ color: theme === 'dark' ? 'white' : theme === 'light' ? 'black' : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'white' : 'black' }}>We help your imagination transform into reality, start for free today.</p>
+<h1 className="text-4xl font-bold sm:text-5xl md:text-6xl animate-fade-in" >Bring your story to life with Story time Africa</h1>
+<p className="mt-4 text-lg sm:text-xl md:text-2xl animate-fade-in delay-100" > We help your imagination transform into reality, start for free today.</p>
       <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded mx-auto block animate-fade-in delay-200"><a  href="#StoryToVideo">Create Video</a></button>
     </div>
     <div ref={mountRef} className={`hero-section ${theme === 'dark' ? 'dark' : 'light'} w-full h-[calc(100vh-150px)] sm:h-[calc(100vh-200px)] md:h-[calc(100vh-250px)] flex items-center justify-center`}  />
