@@ -1,14 +1,13 @@
-import React from 'react';
+"use client";
+
+import React, { useState } from 'react';
 import LoginModal from '@/components/LoginModal';
 import { toast } from 'react-toastify';
 
-interface LoginPageProps {
-  isLoginModalOpen: boolean;
-  setIsLoginModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setIsSignupModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-}
+const LoginPage: React.FC = () => {
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
 
-const LoginPage: React.FC<LoginPageProps> = ({ isLoginModalOpen, setIsLoginModalOpen, setIsSignupModalOpen }) => {
   const handleLoginSuccess = () => {
     toast.success('Login successful!');
   };
@@ -16,7 +15,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ isLoginModalOpen, setIsLoginModal
   return (
     <div>
       <h1>Login Page</h1>
-      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} setIsSignupModalOpen={setIsSignupModalOpen} onLoginSuccess={handleLoginSuccess} />
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        setIsSignupModalOpen={setIsSignupModalOpen}
+        onLoginSuccess={handleLoginSuccess}
+      />
     </div>
   );
 };

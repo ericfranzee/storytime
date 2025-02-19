@@ -6,8 +6,7 @@ import MobileMenu from "./MobileMenu";
 import { useAuth } from '@/hooks/useAuth';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/app/firebase';
-import LoginModal from './LoginModal';
-import SignupModal from './SignupModal';
+import dynamic from 'next/dynamic';
 import { getFirestore, doc, DocumentData, onSnapshot } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,26 +22,24 @@ import PaymentSection from './PaymentSection';
 import CurrencySwitch from "./CurrencySwitch";
 
 interface HeaderProps {
-  isLoginModalOpen: boolean;
-  setIsLoginModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  isSignupModalOpen: boolean;
-  setIsSignupModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const Header: React.FC<HeaderProps> = ({
-  isLoginModalOpen,
-  setIsLoginModalOpen,
-  isSignupModalOpen,
-  setIsSignupModalOpen,
-}) => {
+const Header: React.FC<HeaderProps> = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [videoCount, setVideoCount] = useState(0);
   const [subscription, setSubscription] = useState<DocumentData | null>(null);
   const [isUnrestricted, setIsUnrestricted] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false); // Track if component has mounted
   const unrestrictedEmails = process.env.UNRESTRICTED_EMAILS ? JSON.parse(process.env.UNRESTRICTED_EMAILS) : [];
   const db = getFirestore();
   const dropdownButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setHasMounted(true); // Set hasMounted to true after component mounts
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -86,6 +83,8 @@ const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const DynamicLoginModal = dynamic(() => import('./LoginModal'), { ssr: false });
+  const DynamicSignupModal = dynamic(() => import('./SignupModal'), { ssr: false });
 
   return (
     <>
@@ -151,8 +150,22 @@ const Header: React.FC<HeaderProps> = ({
         </div>
         <MobileMenu isOpen={isOpen} onClose={toggleMenu} setIsLoginModalOpen={setIsLoginModalOpen} setIsSignupModalOpen={setIsSignupModalOpen} />
       </header>
-      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} onLoginSuccess={() => console.log('Login successful!')} setIsSignupModalOpen={setIsSignupModalOpen} />
-      <SignupModal isOpen={isSignupModalOpen} onClose={() => setIsSignupModalOpen(false)} setIsLoginModalOpen={setIsLoginModalOpen} onSignupSuccess={() => console.log('Signup successful!')} />
+      {hasMounted && (
+        <>
+          <DynamicLoginModal
+            isOpen={isLoginModalOpen}
+            onClose={() => setIsLoginModalOpen(false)}
+            onLoginSuccess={() => console.log('Login successful!')}
+            setIsSignupModalOpen={setIsSignupModalOpen}
+          />
+          <DynamicSignupModal
+            isOpen={isSignupModalOpen}
+            onClose={() => setIsSignupModalOpen(false)}
+            setIsLoginModalOpen={setIsLoginModalOpen}
+            onSignupSuccess={() => console.log('Signup successful!')}
+          />
+        </>
+      )}
     </>
   );
 };

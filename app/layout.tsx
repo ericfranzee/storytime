@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import "./globals.css"
 import { Inter } from "next/font/google"
@@ -19,7 +19,6 @@ import { CurrencyProvider } from "@/lib/currency-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
-import { useState } from 'react';
 import PricingPage from "./pricing/page"
 
 export default function RootLayout({
@@ -27,9 +26,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
-
   return (
     <html lang="en" {...metadata}>
       <head>
@@ -38,12 +34,7 @@ export default function RootLayout({
       <body className={`${inter.className} flex flex-col min-h-screen`}>
         <CurrencyProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <Header
-              isLoginModalOpen={isLoginModalOpen}
-              setIsLoginModalOpen={() => setIsLoginModalOpen(true)}
-              isSignupModalOpen={isSignupModalOpen}
-              setIsSignupModalOpen={() => setIsSignupModalOpen(true)}
-            />
+            <Header />
             <HeroSection />
             <main className="flex-grow container mx-auto py-8 px-4">
               <StoryToVideo />
