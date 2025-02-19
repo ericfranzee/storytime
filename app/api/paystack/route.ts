@@ -3,6 +3,8 @@ import crypto from 'crypto';
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 import { addSubscription, updateSubscriptionPaymentStatus, calculateExpiryDate, getVideoLimit } from '@/app/firebase';
 
+export const dynamic = 'force-dynamic';
+
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 if (!PAYSTACK_SECRET_KEY) {
   throw new Error('PAYSTACK_SECRET_KEY is not defined');
