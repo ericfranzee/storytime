@@ -1,12 +1,21 @@
 "use client"
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useTheme } from 'next-themes';
+import { useAuth } from '@/hooks/useAuth';
+import SignupModal from '@/components/SignupModal';
 
 const HeroSection = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
   const [scrollPosition, setScrollPosition] = React.useState(0);
+  const [showSignupModal, setShowSignupModal] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const { user } = useAuth();
+
+  const handleSignupSuccess = () => {
+    // Handle successful signup
+  };
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -129,9 +138,28 @@ return (
     >
 <h1 className="text-4xl font-bold sm:text-5xl md:text-6xl animate-fade-in" >Bring your story to life with Story time Africa</h1>
 <p className="mt-4 text-lg sm:text-xl md:text-2xl animate-fade-in delay-100" > We help your imagination transform into reality, start for free today.</p>
-      <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded mx-auto block animate-fade-in delay-200"><a  href="#StoryToVideo">Create Video</a></button>
+      <button
+        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded mx-auto block animate-fade-in delay-200"
+        onClick={() => {
+          if (!user) {
+            setShowSignupModal(true);
+          } else {
+            window.location.href = "#story";
+          }
+        }}
+      >
+        Create Video
+      </button>
+      {showSignupModal && (
+        <SignupModal
+          isOpen={showSignupModal}
+          onClose={() => setShowSignupModal(false)}
+          setIsLoginModalOpen={setIsLoginModalOpen}
+          onSignupSuccess={handleSignupSuccess}
+        />
+      )}
     </div>
-    <div ref={mountRef} className={`hero-section ${theme === 'dark' ? 'dark' : 'light'} w-full h-[calc(100vh-150px)] sm:h-[calc(100vh-200px)] md:h-[calc(100vh-250px)] flex items-center justify-center`}  />
+    <div ref={mountRef} className={`hero-section ${theme === 'dark' ? 'dark' : 'light'} w-full h-[calc(100vh-150px)] sm:h-[calc(100vh-200px)] md:h-[calc(100vh-250px)] flex items-center justify-center`} />
   </div>
 );
 };

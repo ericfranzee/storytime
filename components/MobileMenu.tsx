@@ -2,14 +2,35 @@
 
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/app/firebase';
+import { Button } from "@/components/ui/button";
 
 interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  setIsLoginModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsSignupModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
+const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, setIsLoginModalOpen, setIsSignupModalOpen }) => {
+  const { user } = useAuth();
+
   if (!isOpen) return null;
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      console.log('Logout successful!');
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('Logout failed: ' + error.message);
+      } else {
+        console.error('Logout failed: Unknown error');
+      }
+    }
+  };
 
   const menuClass = `fixed top-0 left-0 w-full h-full z-50 ${
     isOpen ? 'block' : 'hidden'
@@ -27,12 +48,26 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
       <nav className="flex flex-col items-center justify-center h-full">
         <ul className="flex flex-col space-y-4">
           <li><a href="/" className="hover:underline text-lg">Home</a></li>
-          <li><a href="#ApiSection" className="hover:underline text-lg">API</a></li>
-          <li><a href="#StoryToVideo" className="hover:underline text-lg">Story Types</a></li>
-          <li><a href="#" className="hover:underline text-lg">Pricing</a></li>
-          <li><a href="#" className="hover:underline text-lg">About</a></li>
-          <li><a href="#" className="hover:underline text-lg">Log in</a></li>
-          <li><a href="#" className="hover:underline text-lg">Try for free</a></li>
+          <li><a href="#api" className="hover:underline text-lg">API</a></li>
+          <li><a href="#story" className="hover:underline text-lg">Story Types</a></li>
+          <li><a href="#pricing" className="hover:underline text-lg">Pricing</a></li>
+          <li><a href="#about" className="hover:underline text-lg">About</a></li>
+          {user ? (
+            <>
+              <li>
+                <Button variant="ghost" onClick={handleLogout} className="hover:underline text-lg">Log out</Button>
+              </li>
+            </>
+          ) : (
+            <>
+              <li>
+                <Button variant="ghost" onClick={() => { onClose(); setIsLoginModalOpen(true) }} className="hover:underline text-lg">Log in</Button>
+              </li>
+              <li>
+                <Button variant="ghost" onClick={() => { onClose(); setIsSignupModalOpen(true) }} className="hover:underline text-lg">Sign up</Button>
+              </li>
+            </>
+          )}
         </ul>
       </nav>
     </div>,

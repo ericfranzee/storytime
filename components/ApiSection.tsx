@@ -5,15 +5,17 @@ import 'highlight.js/styles/github-dark.css';
 
 const ApiSection = () => {
   const codeRef = useRef(null);
+  const highlighted = useRef(false);
 
   useEffect(() => {
-    if (codeRef.current) {
+    if (codeRef.current && !highlighted.current) {
       hljs.highlightElement(codeRef.current);
+      highlighted.current = true;
     }
-  }, []);
+  }, [codeRef]);
 
   return (
-    <div className="container mx-auto mt-10 p-4 md:p-8" id="ApiSection">
+    <div className="container mx-auto mt-10 p-4 md:p-8" id="api">
       <div className="flex flex-col md:flex-row w-full">
         <div className="w-full md:w-1/2 pr-4 mb-4 md:mb-0">
           <h2 className="text-3xl font-bold mb-4">Integrate Our API</h2>

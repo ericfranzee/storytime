@@ -1,4 +1,6 @@
 import React from 'react';
+import CurrencySwitch from "./CurrencySwitch";
+import { Button } from "@/components/ui/button";
 
 const Footer = () => {
   return (
@@ -10,15 +12,20 @@ const Footer = () => {
             <p className="text-lg sm:text-sm">
               Transforming stories into captivating<br /> videos, one frame at a time.
             </p>
+            <div className="mt-4">
+              <p className="text-lg sm:text-sm">Change Currency</p>
+              {/* Currency Switch */}
+              <CurrencySwitch />
+            </div>
           </div>
           <div className="mb-6 md:mb-0">
             <h3 className="text-2xl font-bold mb-4">Useful Links</h3>
             <ul className="list-none">
               <li><a href="/" className="text-lg sm:text-sm hover:text-white">Home</a></li>
-              <li><a href="#ApiSection" className="text-lg sm:text-sm hover:text-white">API</a></li>
-              <li><a href="#" className="text-lg sm:text-sm hover:text-white">About</a></li>
-              <li><a href="#" className="text-lg sm:text-sm hover:text-white">Pricing</a></li>
-              <li><a href="#" className="text-lg sm:text-sm hover:text-white">Services</a></li>
+              <li><a href="#api" className="text-lg sm:text-sm hover:text-white">API</a></li>
+              <li><a href="#about" className="text-lg sm:text-sm hover:text-white">About</a></li>
+              <li><a href="#pricing" className="text-lg sm:text-sm hover:text-white">Pricing</a></li>
+              <li><a href="#story" className="text-lg sm:text-sm hover:text-white">Story Gernerator</a></li>
             </ul>
           </div>
           <div>

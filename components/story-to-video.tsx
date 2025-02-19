@@ -4,8 +4,10 @@ import { useState, useEffect } from "react"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { useAuth } from "@/hooks/useAuth"
 import { useToast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
+import LoginModal from "@/components/LoginModal"
 import axios, { AxiosResponse } from "axios"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +18,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { voiceOptions } from "./voice-options"
+import { getFirestore, doc, getDoc, setDoc, increment, DocumentData } from "firebase/firestore";
+import { getUserSubscription, incrementVideoUsage } from "@/app/firebase";
 
 const MAX_CHARACTERS = 1000
 const storyTypes = ["African Folktales", "History", "News", "Bedtime Stories"]
@@ -24,6 +28,24 @@ let audio: HTMLAudioElement; // Declare audio variable
 let voiceAudio: HTMLAudioElement; // Declare voice audio variable
 
 export default function StoryToVideo() {
+  const { user } = useAuth();
+  const isLoggedIn = !!user;
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [subscription, setSubscription] = useState<DocumentData | null>(null);
+  const [isUnrestricted, setIsUnrestricted] = useState(false);
+  const unrestrictedEmails = process.env.UNRESTRICTED_EMAILS ? JSON.parse(process.env.UNRESTRICTED_EMAILS) : [];
+  const db = getFirestore();
+
+  useEffect(() => {
+    if (user) {
+      setIsUnrestricted(unrestrictedEmails.includes(user.email));
+      const fetchSubscription = async () => {
+        const sub = await getUserSubscription(user.uid);
+        setSubscription(sub);
+      };
+      fetchSubscription();
+    }
+  }, [user, db, unrestrictedEmails]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -35,8 +57,8 @@ export default function StoryToVideo() {
   const [story, setStory] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isWaiting, setIsWaiting] = useState(false)
-  const [waitTime, setWaitTime] = useState(300) // 5 minutes in seconds
-  const [countdown, setCountdown] = useState(300) // 5 minutes in seconds
+  const [waitTime, setWaitTime] = useState(600) // 10 minutes in seconds
+  const [countdown, setCountdown] = useState(600) // 10 minutes in seconds
   const [isLoadingVideo, setIsLoadingVideo] = useState(false)
   const [progress, setProgress] = useState(0)
   const [videoUrl, setVideoUrl] = useState("");
@@ -101,17 +123,43 @@ export default function StoryToVideo() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (story.trim() === "") {
-      toast({
-        title: "Error",
-        description: "Please enter a story before submitting.",
-        variant: "destructive",
-      })
-      return
+    if (!isLoggedIn) {
+      setShowLoginModal(true);
+      return;
     }
 
-    setIsLoading(true)
-    setProgress(0)
+    if (!subscription) {
+      toast({
+        title: "Error",
+        description: "Could not retrieve subscription information.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isUnrestricted && subscription.usage >= subscription.videoLimit) {
+      toast({
+        title: "Limit Reached",
+        description: "You have reached your monthly video generation limit.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setProgress(0);
+
+    try {
+      await incrementVideoUsage(user.uid);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to increment video usage.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
 
     const musicParameter = music === "others" ? musicUrl : music;
 
@@ -131,11 +179,8 @@ export default function StoryToVideo() {
         },
       });
 
-      setVideoUrl(response.data.videoUrl)
-      toast({
-        title: "Success",
-        description: "Your video has been generated successfully!",
-      })
+      setVideoUrl(response.data.videoUrl);
+      toast({ title: "Success", description: "Your video has been generated successfully!", variant: "default" });
 
       // Start the timer
       setIsWaiting(true);
@@ -173,13 +218,13 @@ export default function StoryToVideo() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "An error occurred while generating your video with music. Please try again.",
+        description: "An error occurred while generating your video. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(videoUrl)
@@ -253,7 +298,8 @@ export default function StoryToVideo() {
   const [selectedStoryType, setSelectedStoryType] = useState(defaultStoryType);
 
   return (
-    <div id="StoryToVideo" className="w-full mx-auto space-y-8 p-8 bg-white dark:bg-gray-900 rounded-lg shadow-lg">
+    <div id="story" className="w-full mx-auto space-y-8 p-8 bg-white dark:bg-gray-900 rounded-lg shadow-lg">
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} setIsSignupModalOpen={() => {}} isOpen={showLoginModal} onLoginSuccess={() => {}} />}
       <div className="flex justify-between items-center">
         <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Story Time</h1>
       </div>
@@ -299,7 +345,7 @@ export default function StoryToVideo() {
               value={music}
               onChange={(e) => setMusic(e.target.value)}
             >
-              {musicOptions.map((option) => (
+              {musicOptions.map((option: { value: string; label: string }) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -390,7 +436,7 @@ export default function StoryToVideo() {
               value={voice}
               onChange={(e) => setVoice(e.target.value)}
             >
-              {voiceOptions.map((option) => (
+              {voiceOptions.map((option: { value: string; label: string }) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -435,7 +481,7 @@ export default function StoryToVideo() {
       )}
       {isWaiting && (
         <div className="space-y-2">
-          <p className="text-center text-sm text-muted-foreground dark:text-gray-400">Please wait for 5 minutes as the video is being generated.</p>
+          <p className="text-center text-sm text-muted-foreground dark:text-gray-400">Please wait for 10 minutes as the video is being generated.</p>
           <div id="countdown" className="text-center text-4xl font-bold mt-4 text-gray-900 dark:text-white">{formatTime(countdown)}</div>
         </div>
       )}
@@ -464,7 +510,7 @@ export default function StoryToVideo() {
           </div>
         </div>
       )}
-      <Toaster />
+      
     </div>
   );
 }
