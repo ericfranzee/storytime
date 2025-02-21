@@ -1,84 +1,82 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
-import { addSubscription, updateSubscriptionPaymentStatus, calculateExpiryDate, getVideoLimit } from '@/app/firebase';
+import { calculateExpiryDate, getVideoLimit } from '@/app/firebase';
 
 export const dynamic = 'force-dynamic';
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
-if (!PAYSTACK_SECRET_KEY) {
-  throw new Error('PAYSTACK_SECRET_KEY is not defined');
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY as string).update(JSON.stringify(await request.json())).digest('hex');
-    if (hash !== request.headers.get('x-paystack-signature')) {
-      return NextResponse.json({ message: 'Invalid signature' }, { status: 400 });
+    const data = await request.json();
+    const { reference, status, transaction, metadata } = data;
+    const userId = metadata.userId;
+    const subscriptionPlan = metadata.plan;
+
+    // Validate Paystack response
+    if (!reference || !status || !transaction || !userId || !subscriptionPlan) {
+      console.error('Invalid Paystack response:', data);
+      return NextResponse.json({ message: 'Invalid Paystack response' }, { status: 400 });
     }
 
-    const event = await request.json();
-    if (event.event === 'charge.success') {
-      const { reference, amount, currency, customer, metadata, status } = event.data;
-      const userId = metadata.userId;
+    if (status === 'success') {
+      const subscriptionDate = new Date();
+      const expiryDate = calculateExpiryDate(subscriptionDate).getTime();
+      const videoLimit = getVideoLimit(subscriptionPlan);
+      const expiryDateISO = new Date(expiryDate).toISOString();
+      const resetDate = expiryDate; // 30 days after subscription
 
-      if (status === 'success') {
-        const subscriptionDate = new Date();
-        const expiryDate = calculateExpiryDate(subscriptionDate);
-        const videoLimit = getVideoLimit(metadata.plan);
+      const db = getFirestore();
+      const userDocRef = doc(db, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
 
-        // Record subscription details in Firebase
-        const subscriptionData = {
-          userId: userId,
-          reference: reference,
-          amount: amount / 100, // amount is in kobo, convert to USD
-          currency: currency,
-          subscriptionPlan: metadata.plan,
-          paymentStatus: 'active',
-          videoCount: 0,
-          usage: 0,
-          remainingUsage: videoLimit,
-          videoLimit: videoLimit,
-          subscriptionStartDate: subscriptionDate.toISOString(),
-          expiryDate: expiryDate.toISOString(),
-          paymentReference: reference,
-          transactionStatus: status,
-        };
-
-        try {
-          await addSubscription(subscriptionData);
-          const db = getFirestore();
-          const userDocRef = doc(db, 'users', userId);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-            await setDoc(userDocRef, {
-              subscription: metadata.plan,
-              videoCount: 0,
-              videoLimit: videoLimit === Infinity ? 'unlimited' : videoLimit,
-            }, { merge: true });
-          }
-
-          // Update payment status
-          await updateSubscriptionPaymentStatus(userId, 'active');
-
-          return NextResponse.json({ message: 'Subscription recorded successfully' });
-        } catch (error: any) {
-          console.error('Error recording subscription:', error);
-          console.error('Error recording subscription - message:', error.message);
-          console.error('Error recording subscription - stack:', error.stack);
-          return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
-        }
-      } else {
-        console.log(`Payment failed for reference ${reference}, status: ${status}`);
-        return NextResponse.json({ message: 'Payment not successful' }, { status: 400 });
+      if (!userDoc.exists()) {
+        console.error('User document not found:', userId);
+        return NextResponse.json({ message: 'User not found' }, { status: 404 });
       }
-    }
 
-    return NextResponse.json({ message: 'Event received' });
+      const userData = userDoc.data();
+      const subscriptionId = userData.subscriptionId;
+
+      // Get the subscription document
+      const subscriptionDocRef = doc(db, 'subscriptions', subscriptionId);
+      const subscriptionDoc = await getDoc(subscriptionDocRef);
+
+      const subscriptionData = {
+        userId: userId,
+        reference: reference,
+        transactionId: transaction,
+        paymentStatus: status,
+        subscriptionPlan: subscriptionPlan,
+        videoCount: 0,
+        usage: 0,
+        remainingUsage: videoLimit,
+        videoLimit: videoLimit,
+        resetDate: resetDate,
+        subscriptionStartDate: subscriptionDate.toISOString(),
+        expiryDate: expiryDate,
+        expiryDateISO: expiryDateISO,
+      };
+
+      try {
+        // Update the subscription document
+        await setDoc(subscriptionDocRef, subscriptionData, { merge: true });
+
+        await setDoc(userDocRef, {
+          subscription: subscriptionPlan,
+          videoCount: 0,
+          videoLimit: videoLimit === Infinity ? 'unlimited' : videoLimit,
+        }, { merge: true });
+
+        return NextResponse.json({ message: 'Subscription recorded successfully' });
+      } catch (error: any) {
+        console.error('Error recording subscription:', error);
+        return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
+      }
+    } else {
+      console.log(`Payment failed for reference ${reference}, status: ${status}`);
+      return NextResponse.json({ message: 'Payment not successful' }, { status: 400 });
+    }
   } catch (error: any) {
     console.error('Error processing Paystack webhook:', error);
-    console.error('Error processing Paystack webhook - message:', error.message);
-    console.error('Error processing Paystack webhook - stack:', error.stack);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

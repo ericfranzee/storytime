@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import axios from 'axios';
-import { auth, updateUserSubscription } from '@/app/firebase';
 import { useToast } from "@/components/ui/use-toast";
 import { useCurrency } from '@/lib/currency-context';
 
@@ -50,8 +49,19 @@ const PaystackPopup: React.FC<PaystackPopupProps> = ({ amount, metadata }) => {
             onClose: () => {
               toast({ title: "Payment window closed.", variant: "default" });
             },
-            callback: (response: any) => {
+            callback: async (response: any) => {
               console.log('Paystack response', response);
+              try {
+                const updateSubscriptionResponse = await axios.post('/api/paystack', {
+                  ...response,
+                  metadata: updatedMetadata,
+                });
+                console.log('Subscription update response:', updateSubscriptionResponse.data);
+                toast({ title: "Payment successful!", variant: "default" });
+              } catch (error: any) {
+                console.error('Error updating subscription:', error);
+                toast({ title: "Payment failed.", variant: "destructive" });
+              }
             },
           });
         } catch (error) {

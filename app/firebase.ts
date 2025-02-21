@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase/app';
+import { v4 as uuidv4 } from 'uuid';
 import { getFirestore, collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { sendPasswordResetEmail } from "firebase/auth";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -9,7 +11,7 @@ const firebaseConfig = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_APP_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
 // Initialize Firebase
@@ -81,8 +83,9 @@ export const getUserSubscription = async (userId: string) => {
         usage: data.usage || 0,
         remainingUsage: data.remainingUsage || 0,
         videoLimit: data.videoLimit || 3,
-        resetDate: data.resetDate ? new Date(data.resetDate) : null,
-        expiryDate: data.expiryDate ? new Date(data.expiryDate) : null,
+        videoCount: data.videoCount || 0,
+        resetDate: data.resetDate ? new Date(data.resetDate * 1000) : null,
+        expiryDate: data.expiryDate ? new Date(data.expiryDate * 1000) : null,
       };
     }
     return null;
@@ -120,12 +123,26 @@ export const signUpWithEmailPassword = async (email: string, password: string) =
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Initialize user's video count and subscription details in Firestore
+    // Send verification email
+    try {
+      await sendEmailVerification(user);
+    } catch (error) {
+      console.error("Error sending verification email:", error);
+      throw new Error("Failed to send verification email.");
+    }
+
+    // Initialize user's subscription details in Firestore
     const userDocRef = doc(db, 'users', user.uid);
-    await setDoc(userDocRef, { videoCount: 0, subscriptionId: null }, { merge: true });
 
     try {
-      await createDefaultFreePlan(user.uid, email);
+      const freePlan = await createDefaultFreePlan(user.uid, email);
+      const subscriptionsQuery = query(collection(db, 'subscriptions'), where('userId', '==', user.uid), where('subscriptionPlan', '==', 'free'));
+      const querySnapshot = await getDocs(subscriptionsQuery);
+      if (!querySnapshot.empty) {
+        const subscriptionDoc = querySnapshot.docs[0];
+        const subscriptionId = subscriptionDoc.id;
+        await updateDoc(userDocRef, { subscriptionId: subscriptionId, email: email, subscriptionPlan: 'free' });
+      }
     } catch (e) {
       console.error('Error creating default free plan: ', e);
     }
@@ -143,16 +160,11 @@ export const signInWithGoogle = async () => {
     const userCredential = await signInWithPopup(auth, provider);
     const user = userCredential.user;
 
-    // Initialize user's video count and subscription details in Firestore
+    // Initialize user's subscription details in Firestore
     const userDocRef = doc(db, 'users', user.uid);
-    await setDoc(userDocRef, { videoCount: 0, subscriptionId: null }, { merge: true });
 
-     try {
-      // Check if the user already has a subscription
-      const existingSubscriptions = await getSubscriptionByUserId(user.uid);
-      if (existingSubscriptions.length === 0) {
-        await createDefaultFreePlan(user.uid, user.email || '');
-      }
+    try {
+      await createDefaultFreePlan(user.uid, user.email || "");
     } catch (e) {
       console.error('Error creating default free plan: ', e);
     }
@@ -164,7 +176,7 @@ export const signInWithGoogle = async () => {
   }
 };
 
-export const updateUserSubscription = async (userId: string, subscriptionData: any) => {
+export const updateUserSubscription = async (userId: strinsubscriptionData: any) => {
   try {
     const userDocRef = doc(db, 'users', userId);
     await updateDoc(userDocRef, { subscriptionId: subscriptionData.id });
@@ -188,7 +200,8 @@ export const updateUserSubscription = async (userId: string, subscriptionData: a
 export const createUserSubscription = async (userId: string, email: string, plan: string) => {
   try {
     const subscriptionDate = new Date();
-    const expiryDate = calculateExpiryDate(subscriptionDate);
+    const expiryDate = calculateExpiryDate(subscriptionDate).getTime();
+    const resetDate = new Date(subscriptionDate.getFullYear(), subscriptionDate.getMonth() + 1, 0).getTime(); // End of the month
     const videoLimit = getVideoLimit(plan);
 
     const subscriptionData = {
@@ -200,9 +213,10 @@ export const createUserSubscription = async (userId: string, email: string, plan
       usage: 0,
       remainingUsage: videoLimit,
       videoLimit: videoLimit,
-      resetDate: new Date(subscriptionDate.getFullYear(), subscriptionDate.getMonth() + 1, 0).getTime(),
+      resetDate: resetDate,
       subscriptionStartDate: subscriptionDate.toISOString(),
-      expiryDate: expiryDate.getTime(),
+      expiryDate: expiryDate,
+      expiryDateISO: new Date(expiryDate).toISOString(),
     };
     await addDoc(collection(db, 'subscriptions'), subscriptionData);
   } catch (e) {
@@ -244,6 +258,7 @@ export const incrementVideoUsage = async (userId: string) => {
       await updateDoc(subscriptionDoc.ref, {
         usage: subscription.usage + 1,
         remainingUsage: subscription.videoLimit - (subscription.usage + 1),
+        videoCount: subscription.videoCount + 1,
       });
     }
   } catch (e) {
@@ -268,7 +283,7 @@ export const getUserUsage = async (userId: string) => {
 export const updateUserUsage = async (userId: string, usage: number) => {
   try {
     const userDocRef = doc(db, 'users', userId);
-    await updateDoc(userDocRef, { usage });
+    await updateDoc(userDocRef, { usage: usage });
   } catch (e) {
     console.error('Error updating user usage: ', e);
   }
@@ -282,7 +297,7 @@ export const getRemainingUsage = async (userId: string) => {
     }
     return 0;
   } catch (e) {
-    console.error('Error fetching remaining usage: ', e);
+    console.error('Error fetching user remaining usage: ', e);
     return 0;
   }
 };
@@ -290,7 +305,7 @@ export const getRemainingUsage = async (userId: string) => {
 export const updateRemainingUsage = async (userId: string, remainingUsage: number) => {
   try {
     const userDocRef = doc(db, 'users', userId);
-    await updateDoc(userDocRef, { remainingUsage });
+    await updateDoc(userDocRef, { remainingUsage: remainingUsage });
   } catch (e) {
     console.error('Error updating remaining usage: ', e);
   }
@@ -311,6 +326,10 @@ export const getTrialEndDate = async (userId: string) => {
 
 export const createDefaultFreePlan = async (userId: string, email: string) => {
   try {
+    const subscriptionId = uuidv4();
+    const subscriptionDate = new Date();
+    const expiryDate = calculateExpiryDate(subscriptionDate).getTime();
+    const resetDate = new Date(subscriptionDate.getFullYear(), subscriptionDate.getMonth() + 1, 0).getTime();
     const subscriptionData = {
       userId,
       email,
@@ -320,11 +339,16 @@ export const createDefaultFreePlan = async (userId: string, email: string) => {
       usage: 0,
       remainingUsage: 3,
       videoLimit: 3,
-      resetDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getTime(),
-      subscriptionStartDate: new Date(),
-      expiryDate: calculateExpiryDate(new Date()).getTime(),
+      resetDate: resetDate,
+      subscriptionStartDate: subscriptionDate.toISOString(),
+      expiryDate: expiryDate,
+      expiryDateISO: new Date(expiryDate).toISOString(),
     };
-    await addDoc(collection(db, 'subscriptions'), subscriptionData);
+    const docRef = await addDoc(collection(db, 'subscriptions'), subscriptionData);
+
+    const userDocRef = doc(db, 'users', userId);
+    await setDoc(userDocRef, { subscriptionId: subscriptionId, email: email, subscriptionPlan: 'free' }, { merge: true });
+
   } catch (e) {
     console.error('Error creating default free plan: ', e);
   }
@@ -341,15 +365,17 @@ export const resetFreeTierUsage = async (userId: string) => {
 
     if (!querySnapshot.empty) {
       const subscriptionDoc = querySnapshot.docs[0];
+      const subscriptionDate = new Date();
+      const expiryDate = calculateExpiryDate(subscriptionDate).getTime();
       await updateDoc(subscriptionDoc.ref, {
         usage: 0,
         remainingUsage: 3,
-        expiryDate: calculateExpiryDate(new Date()).getTime(),
+        resetDate: new Date(subscriptionDate.getFullYear(), subscriptionDate.getMonth() + 1, 0).getTime(),
+        expiryDate: expiryDate,
       });
     }
   } catch (e) {
     console.error('Error resetting free tier usage: ', e);
   }
 };
-
-export { auth };
+export { auth, sendPasswordResetEmail };

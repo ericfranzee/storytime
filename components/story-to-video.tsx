@@ -121,7 +121,7 @@ export default function StoryToVideo() {
     audio.src = currentMusicUrl;
   }, [music, musicUrl, apiMusicUrls]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoggedIn) {
       setShowLoginModal(true);
@@ -146,25 +146,23 @@ export default function StoryToVideo() {
       return;
     }
 
-    setIsLoading(true);
-    setProgress(0);
-
-    try {
-      await incrementVideoUsage(user.uid);
-    } catch (error: any) {
+    if (story.length > MAX_CHARACTERS || story.length === 0) {
       toast({
         title: "Error",
-        description: error.message || "Failed to increment video usage.",
+        description: "Please enter a valid story summary.",
         variant: "destructive",
       });
-      setIsLoading(false);
       return;
     }
+
+    setIsLoading(true);
+    setProgress(0);
 
     const musicParameter = music === "others" ? musicUrl : music;
 
     let response: AxiosResponse<any>;
     try {
+      await incrementVideoUsage(user.uid);
       response = await axios.post(webhookUrl, {
         story: story,
         music: musicParameter,
@@ -236,7 +234,8 @@ export default function StoryToVideo() {
 
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const handleVoicePlayPause = () => {
+  const handleVoicePlayPause = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const voiceUrl = process.env.NEXT_PUBLIC_VOICE_URL?.replace('{value}', voice);
     if (!voiceUrl) {
       toast({
@@ -392,11 +391,22 @@ export default function StoryToVideo() {
                     }}
                   >
                     {isMounted && !audio.paused ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                        <path d="M11 7H8V17H11V7Z" /> <path d="M13 17H16V7H13V17Z" />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="w-4 h-4"
+                      >
+                        <path d="M11 7H8V17H11V7Z" />{" "}
+                        <path d="M13 17H16V7H13V17Z" />
                       </svg>
                     ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="w-4 h-4"
+                      >
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     )}
@@ -452,11 +462,22 @@ export default function StoryToVideo() {
                     onClick={handleVoicePlayPause}
                   >
                     {isMounted && isPlaying ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                        <path d="M11 7H8V17H11V7Z" /> <path d="M13 17H16V7H13V17Z" />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="w-4 h-4"
+                      >
+                        <path d="M11 7H8V17H11V7Z" />{" "}
+                        <path d="M13 17H16V7H13V17Z" />
                       </svg>
                     ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="w-4 h-4"
+                      >
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     )}
