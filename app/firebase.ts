@@ -176,7 +176,7 @@ export const signInWithGoogle = async () => {
   }
 };
 
-export const updateUserSubscription = async (userId: strinsubscriptionData: any) => {
+export const updateUserSubscription = async (userId: string, subscriptionData: any) => {
   try {
     const userDocRef = doc(db, 'users', userId);
     await updateDoc(userDocRef, { subscriptionId: subscriptionData.id });
