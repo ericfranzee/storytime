@@ -60,12 +60,6 @@ export async function POST(request: NextRequest) {
         // Update the subscription document
         await setDoc(subscriptionDocRef, subscriptionData, { merge: true });
 
-        await setDoc(userDocRef, {
-          subscription: subscriptionPlan,
-          videoCount: 0,
-          videoLimit: videoLimit === Infinity ? 'unlimited' : videoLimit,
-        }, { merge: true });
-
         return NextResponse.json({ message: 'Subscription recorded successfully' });
       } catch (error: any) {
         console.error('Error recording subscription:', error);

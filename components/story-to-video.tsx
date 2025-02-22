@@ -162,7 +162,6 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     let response: AxiosResponse<any>;
     try {
-      await incrementVideoUsage(user.uid);
       response = await axios.post(webhookUrl, {
         story: story,
         music: musicParameter,
@@ -177,42 +176,46 @@ const handleSubmit = async (e: React.FormEvent) => {
         },
       });
 
-      setVideoUrl(response.data.videoUrl);
-      toast({ title: "Success", description: "Your video has been generated successfully!", variant: "default" });
+      // Only increment usage if we got a successful response with a video URL
+      if (response.data.videoUrl) {
+        await incrementVideoUsage(user.uid);
+        setVideoUrl(response.data.videoUrl);
+        toast({ title: "Success", description: "Your video has been generated successfully!", variant: "default" });
 
-      // Start the timer
-      setIsWaiting(true);
-      setIsLoadingVideo(true);
-      const interval = setInterval(() => {
-        setCountdown((prevCountdown) => {
-          if (prevCountdown <= 1) {
-            clearInterval(interval);
-            setIsWaiting(false);
-            setIsLoadingVideo(false);
-            setVideoUrl(response.data.videoUrl); // Load the video URL
-            toast({
-              title: "Download Ready",
-              description: "Your video is ready for download.",
-            });
-            return 0;
-          }
-          return prevCountdown - 1;
-        });
-        setWaitTime((prevTime) => {
-          if (prevTime <= 1) {
-            clearInterval(interval);
-            setIsWaiting(false);
-            setIsLoadingVideo(false);
-            setVideoUrl(response.data.videoUrl); // Load the video URL
-            toast({
-              title: "Download Ready",
-              description: "Your video is ready for download.",
-            });
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
+        // Start the timer
+        setIsWaiting(true);
+        setIsLoadingVideo(true);
+        const interval = setInterval(() => {
+          setCountdown((prevCountdown) => {
+            if (prevCountdown <= 1) {
+              clearInterval(interval);
+              setIsWaiting(false);
+              setIsLoadingVideo(false);
+              setVideoUrl(response.data.videoUrl);
+              toast({
+                title: "Download Ready",
+                description: "Your video is ready for download.",
+              });
+              return 0;
+            }
+            return prevCountdown - 1;
+          });
+          setWaitTime((prevTime) => {
+            if (prevTime <= 1) {
+              clearInterval(interval);
+              setIsWaiting(false);
+              setIsLoadingVideo(false);
+              setVideoUrl(response.data.videoUrl);
+              toast({
+                title: "Download Ready",
+                description: "Your video is ready for download.",
+              });
+              return 0;
+            }
+            return prevTime - 1;
+          });
+        }, 1000);
+      }
     } catch (error) {
       toast({
         title: "Error",

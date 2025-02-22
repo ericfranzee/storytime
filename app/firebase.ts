@@ -86,6 +86,9 @@ export const getUserSubscription = async (userId: string) => {
         videoCount: data.videoCount || 0,
         resetDate: data.resetDate ? new Date(data.resetDate * 1000) : null,
         expiryDate: data.expiryDate ? new Date(data.expiryDate * 1000) : null,
+        status: data.paymentStatus || 'inactive',
+        paymentMethod: 'Paystack',
+        expiryDateISO: data.expiryDateISO || null,
       };
     }
     return null;
@@ -347,7 +350,7 @@ export const createDefaultFreePlan = async (userId: string, email: string) => {
     const docRef = await addDoc(collection(db, 'subscriptions'), subscriptionData);
 
     const userDocRef = doc(db, 'users', userId);
-    await setDoc(userDocRef, { subscriptionId: subscriptionId, email: email, subscriptionPlan: 'free' }, { merge: true });
+    await setDoc(userDocRef, { subscription: subscriptionData }, { merge: true });
 
   } catch (e) {
     console.error('Error creating default free plan: ', e);
