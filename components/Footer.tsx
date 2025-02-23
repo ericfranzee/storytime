@@ -15,7 +15,9 @@ const Footer = () => {
             <div className="mt-4">
               <p className="text-lg sm:text-sm">Change Currency</p>
               {/* Currency Switch */}
-              <CurrencySwitch />
+              <div className="footer-currency-select">
+                <CurrencySwitch />
+              </div>
             </div>
           </div>
           <div className="mb-6 md:mb-0">
@@ -33,14 +35,14 @@ const Footer = () => {
             <p className="text-lg sm:text-sm">Address: Wuse 2, Abuja, Nigeria</p>
             <p className="text-lg sm:text-sm">Phone: +234 80123456789</p>
             <p className="text-lg sm:text-sm">Email: info@ericfranzee.com</p>
-            <div className="flex justify-center md:justify-start mt-4">
-              <a href="https://www.fracbook.com/ericfranzee" className="text-gray-300 hover:text-white mr-4">
+            <div className="flex flex-col justify-between md:flex-row md:items-start justify-center mt-4">
+              <a href="https://www.fracbook.com/ericfranzee" className="text-gray-300 hover:text-white mb-2">
                 <i className="fab fa-facebook-square fa-2x"></i>
               </a>
-              <a href="https://www.x.com/ericfranzee" className="text-gray-300 hover:text-white mr-4">
+              <a href="https://www.x.com/ericfranzee" className="text-gray-300 hover:text-white mb-2">
                 <i className="fab fa-twitter-square fa-2x"></i>
               </a>
-              <a href="https://www.instagram.com/ericfranzee" className="text-gray-300 hover:text-white">
+              <a href="https://www.instagram.com/ericfranzee" className="text-gray-300 hover:text-white mb-2">
                 <i className="fab fa-instagram-square fa-2x"></i>
               </a>
             </div>

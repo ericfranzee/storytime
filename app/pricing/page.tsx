@@ -54,7 +54,7 @@ const PricingPage = () => {
         </div>
       </header>
       <main className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="p-6 rounded-lg shadow">
             <h2 className="text-2xl font-bold">Free Subscription</h2>
             <p className="mt-4">No payment required</p>

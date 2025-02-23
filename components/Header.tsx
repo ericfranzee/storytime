@@ -65,7 +65,7 @@ const Header: React.FC<HeaderProps> = () => {
     <>
       <header className="bg-golding-orange text-black dark:text-white p-4">
         <div className="container mx-auto flex flex-row justify-between items-center">
-          <h1 className="text-4 font-bold tracking-wide uppercase">
+          <h1 className="text-3 md:text-4 font-bold tracking-wide uppercase">
             <a href="/">Story Time</a>
           </h1>
           <nav
@@ -110,7 +110,7 @@ const Header: React.FC<HeaderProps> = () => {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="relative h-8 w-8 rounded-full"
+                  className="relative h-8 w-8 rounded-full ml-2 mr-2"
                   ref={dropdownButtonRef}
                 >
                   {user ? (
@@ -148,7 +148,7 @@ const Header: React.FC<HeaderProps> = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <div className="md:hidden">
+            <div className="md:hidden ml-auto">
               <button
                 onClick={toggleMenu}
                 className="text-black dark:text-white focus:outline-none"

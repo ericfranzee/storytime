@@ -9,7 +9,7 @@ interface AuthButtonsProps {
 
 const AuthButtons: React.FC<AuthButtonsProps> = ({ setIsLoginModalOpen, setIsSignupModalOpen }) => {
   return (
-    <div className="flex space-x-4">
+    <div className="flex flex-col sm:flex-row space-y-2 sm:space-x-4">
       <button
         onClick={() => setIsLoginModalOpen(true)}
         className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"

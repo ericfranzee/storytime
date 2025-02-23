@@ -303,21 +303,23 @@ const handleSubmit = async (e: React.FormEvent) => {
     <div id="story" className="w-full mx-auto space-y-8 p-8 bg-white dark:bg-gray-900 rounded-lg shadow-lg">
       {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} setIsSignupModalOpen={() => {}} isOpen={showLoginModal} onLoginSuccess={() => {}} />}
       <div className="flex justify-between items-center">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Story Time</h1>
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Story To Video</h1>
       </div>
       <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-2 mb-4">
         <span className="text-lg font-semibold text-gray-900 dark:text-white">Story Type:</span>
-        {storyTypes.map((type) => (
-          <Button
-            key={type}
-            variant={selectedStoryType === type ? "default" : "outline"}
-            onClick={() => setSelectedStoryType(type)}
-            style={{ borderRadius: '30px' }}
-            className="md:mr-2"
-          >
-            {type}
-          </Button>
-        ))}
+        <div className="grid grid-cols-2 gap-2 md:flex md:flex-row md:items-center md:space-y-0 md:space-x-2">
+          {storyTypes.map((type) => (
+            <Button
+              key={type}
+              variant={selectedStoryType === type ? "default" : "outline"}
+              onClick={() => setSelectedStoryType(type)}
+              style={{ borderRadius: '30px' }}
+              className=""
+            >
+              {type}
+            </Button>
+          ))}
+        </div>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
@@ -326,7 +328,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             value={story}
             onChange={(e) => setStory(e.target.value)}
             maxLength={MAX_CHARACTERS}
-            className="h-60 text-gray-900 dark:text-white"
+            className="h-60 w-full md:w-3/4 text-gray-900 dark:text-white"
           />
           <div className="flex justify-between text-sm text-muted-foreground dark:text-gray-400">
             <span>
@@ -340,10 +342,10 @@ const handleSubmit = async (e: React.FormEvent) => {
           <label htmlFor="music" className="block text-sm font-medium text-gray-700 dark:text-gray-400">
             Background Sound
           </label>
-          <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-2">
+          <div className="flex items-start sm:items-center md:flex-row space-y-2 md:space-y-0 md:space-x-2">
             <select
               id="music"
-              className="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 dark:text-white"
+              className="block w-1/2 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 dark:text-white mobile-margin-top"
               value={music}
               onChange={(e) => setMusic(e.target.value)}
             >
@@ -442,10 +444,10 @@ const handleSubmit = async (e: React.FormEvent) => {
           <label htmlFor="voice" className="block text-sm font-medium text-gray-700 dark:text-gray-400">
             Voice
           </label>
-          <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-2">
+          <div className="flex items-start sm:items-center md:flex-row space-y-2 md:space-y-0 md:space-x-2">
             <select
               id="voice"
-              className="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 dark:text-white"
+              className="block w-1/2 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 dark:text-white mobile-margin-top"
               value={voice}
               onChange={(e) => setVoice(e.target.value)}
             >

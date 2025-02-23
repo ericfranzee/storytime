@@ -159,7 +159,7 @@ return (
         />
       )}
     </div>
-    <div ref={mountRef} className={`hero-section ${theme === 'dark' ? 'dark' : 'light'} w-full h-[calc(100vh-150px)] sm:h-[calc(100vh-200px)] md:h-[calc(100vh-250px)] flex items-center justify-center`} />
+    <div ref={mountRef} className={`hero-section ${theme === 'dark' ? 'dark' : 'light'} w-full h-[calc(100vh-50px)] sm:h-[calc(100vh-100px)] md:h-[calc(100vh-150px)] flex items-center justify-center`} />
   </div>
 );
 };

@@ -68,50 +68,50 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   return (
-    <div
-      className="fixed top-0 left-0 w-full h-full bg-gray-500 bg-opacity-75 flex items-center justify-center overflow-x-auto z-50"
-      style={{ display: isOpen ? 'flex' : 'none' }}
-    >
-      <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-md w-full max-w-md relative">
-        <Button variant="ghost" onClick={onClose} className="absolute top-2 right-2 text-gray-500 hover:text-gray-700">
-          &times;
-        </Button>
-        <h2 className="text-2xl font-bold mb-6 text-center">Settings</h2>
-        {user && <p>Email: {user.email}<br/><br /><hr/></p>}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Current Password</label>
-          <input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            className="w-full p-2 border rounded"
-            required
-            placeholder="Current Password"
-          />
+    <div className={`modal ${isOpen ? 'show' : ''}`}>
+      <div className="modal-content">
+        <span className="close-button" onClick={onClose}>&times;</span>
+        <div className="min-h-screen flex items-center justify-center bg-gray-100">
+          <div className="bg-white dark:bg-gray-900 p-8 rounded-lg shadow-md w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-6 text-center">Settings</h2>
+            {user && <p>Email: {user.email}<br /><br /><hr /></p>}
+            <div className="mb-4"><br />
+              <h3 className="text-lg font-bold mb-2">Change Password</h3>
+              <label className="block text-sm font-medium mb-1">Current Password</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full p-2 border rounded"
+                required
+                placeholder="Current Password"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">New Password</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full p-2 border rounded"
+                required
+                placeholder="New Password"
+              />
+            </div>
+            <Button
+              onClick={handleChangePassword}
+              className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+            >
+              Change Password
+            </Button>
+            <div className="mt-4">
+              <PaymentSection key={key} />
+            </div>
+            <Button variant="ghost" onClick={onClose} className="w-full bg-red-500 text-white p-2 rounded hover:bg-red-600 mt-4">
+              Close
+            </Button>
+          </div>
         </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">New Password</label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full p-2 border rounded"
-            required
-            placeholder="New Password"
-          />
-        </div>
-        <Button
-          onClick={handleChangePassword}
-          className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-        >
-          Change Password
-        </Button>
-        <div className="mt-4">
-          <PaymentSection key={key} />
-        </div>
-        <Button variant="ghost" onClick={onClose} className="w-full bg-red-500 text-white p-2 rounded hover:bg-red-600 mt-4">
-          Close
-        </Button>
       </div>
     </div>
   );
