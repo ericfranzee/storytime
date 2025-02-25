@@ -2,32 +2,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useTheme } from 'next-themes';
-import { useAuth } from '@/hooks/useAuth';
-import SignupModal from '@/components/SignupModal';
 
 const HeroSection = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
-  const [scrollPosition, setScrollPosition] = React.useState(0);
-  const [showSignupModal, setShowSignupModal] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const { user } = useAuth();
 
-  const handleSignupSuccess = () => {
-    // Handle successful signup
-  };
-
-  React.useEffect(() => {
-    const handleScroll = () => {
-      setScrollPosition(window.scrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
 
   useEffect(() => {
     let container: HTMLDivElement;
@@ -132,32 +111,44 @@ return (
   <div className="relative w-full h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-400 to-blue-500 overflow-hidden">
     <div
       className="absolute top-[50px] buttom-[100px] text-center z-10 max-w-4xl px-4"
-      style={{
-        transform: `translateY(${scrollPosition * 0.2}px)`,
-      }}
     >
-<h1 className="text-4xl font-bold sm:text-5xl md:text-6xl animate-fade-in" >Bring your story to life with Story time Africa</h1>
-<p className="mt-4 text-lg sm:text-xl md:text-2xl animate-fade-in delay-100" > We help your imagination transform into reality, start for free today.</p>
-      <button
-        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded mx-auto block animate-fade-in delay-200"
-        onClick={() => {
-          if (!user) {
-            setShowSignupModal(true);
-          } else {
-            window.location.href = "#story";
-          }
-        }}
-      >
-        Create Video
-      </button>
-      {showSignupModal && (
-        <SignupModal
-          isOpen={showSignupModal}
-          onClose={() => setShowSignupModal(false)}
-          setIsLoginModalOpen={setIsLoginModalOpen}
-          onSignupSuccess={handleSignupSuccess}
-        />
-      )}
+      <h1 className="text-4xl font-bold sm:text-5xl md:text-6xl animate-fade-in">
+        Transform Your Stories into Stunning Videos
+      </h1>
+      <p className="mb-20 mt-6 text-lg sm:text-xl md:text-xl animate-fade-in delay-100 max-w-2xl mx-auto">
+        Harness the power of AI to turn your African stories, history, and news into captivating videos. 
+        Perfect for content creators, educators, and storytellers.
+      </p>
+      <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in delay-200">
+        <button
+          className="px-8 py-4 bg-white text-blue-600 rounded-full text-lg font-semibold hover:bg-blue-50 transition-all"        >
+          <a 
+          href="#story"
+         >
+          Start Creating Now
+          </a>
+        </button>
+        <a 
+          href="#demo"
+          className="px-8 py-4 bg-transparent border-2 rounded-full text-lg font-semibold hover:bg-gray-500 transition-all"
+        >
+          Watch Demo
+        </a>
+      </div>
+      <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+        <div className="p-4">
+          <h3 className="text-2xl font-bold">3K+</h3>
+          <p>Videos Created</p>
+        </div>
+        <div className="p-4">
+          <h3 className="text-2xl font-bold">500+</h3>
+          <p>Happy Users</p>
+        </div>
+        <div className="p-4">
+          <h3 className="text-2xl font-bold">4.9/5</h3>
+          <p>User Rating</p>
+        </div>
+      </div>
     </div>
     <div ref={mountRef} className={`hero-section ${theme === 'dark' ? 'dark' : 'light'} w-full h-[calc(100vh-50px)] sm:h-[calc(100vh-100px)] md:h-[calc(100vh-150px)] flex items-center justify-center`} />
   </div>

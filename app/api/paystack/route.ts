@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { calculateExpiryDate, getVideoLimit } from '@/app/firebase';
 
 export const dynamic = 'force-dynamic';
@@ -36,30 +36,34 @@ export async function POST(request: NextRequest) {
       const userData = userDoc.data();
       const subscriptionId = userData.subscriptionId;
 
-      // Get the subscription document
-      const subscriptionDocRef = doc(db, 'subscriptions', subscriptionId);
-      const subscriptionDoc = await getDoc(subscriptionDocRef);
-
-      const subscriptionData = {
-        userId: userId,
-        reference: reference,
-        transactionId: transaction,
-        paymentStatus: status,
-        subscriptionPlan: subscriptionPlan,
-        videoCount: 0,
-        usage: 0,
-        remainingUsage: videoLimit,
-        videoLimit: videoLimit,
-        resetDate: resetDate,
-        subscriptionStartDate: subscriptionDate.toISOString(),
-        expiryDate: expiryDate,
-        expiryDateISO: expiryDateISO,
-      };
-
       try {
-        // Update the subscription document
-        await setDoc(subscriptionDocRef, subscriptionData, { merge: true });
+        // Update both user and subscription documents
+        const batch = writeBatch(db);
+        
+        // Update user document
+        batch.update(userDocRef, {
+          subscriptionPlan: subscriptionPlan
+        });
+        
+        // Update subscription document
+        const subscriptionDocRef = doc(db, 'subscriptions', userData.subscriptionId);
+        batch.update(subscriptionDocRef, {
+          userId: userId,
+          reference: reference,
+          transactionId: transaction,
+          paymentStatus: status,
+          subscriptionPlan: subscriptionPlan,
+          videoCount: 0,
+          usage: 0,
+          remainingUsage: videoLimit,
+          videoLimit: videoLimit,
+          resetDate: resetDate,
+          subscriptionStartDate: subscriptionDate.toISOString(),
+          expiryDate: expiryDate,
+          expiryDateISO: expiryDateISO,
+        });
 
+        await batch.commit();
         return NextResponse.json({ message: 'Subscription recorded successfully' });
       } catch (error: any) {
         console.error('Error recording subscription:', error);

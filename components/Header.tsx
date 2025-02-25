@@ -7,7 +7,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/app/firebase';
 import dynamic from 'next/dynamic';
-import { getFirestore, doc, DocumentData, onSnapshot } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,27 +15,32 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { getUserVideoCount, getUserSubscription } from '@/app/firebase';
+} from "@/components/ui/dropdown-menu";
 import PaymentSection from './PaymentSection';
 import CurrencySwitch from "./CurrencySwitch";
+import { motion, AnimatePresence } from 'framer-motion';
+import { fadeIn, slideIn, stagger } from '@/lib/animation-variants';
+import { useTheme } from 'next-themes';
+import OptimizedImage from '@/components/ui/OptimizedImage';
+import { imageConfig } from '@/config/images';
 
-interface HeaderProps {}
+interface HeaderProps { }
 
 const Header: React.FC<HeaderProps> = () => {
   const { user } = useAuth();
+  const { theme, systemTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false); // Add settings modal state
   const [hasMounted, setHasMounted] = useState(false); // Track if component has mounted
-  const db = getFirestore();
+  const [mounted, setMounted] = useState(false);
   const dropdownButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setHasMounted(true); // Set hasMounted to true after component mounts
+    setMounted(true);
   }, []);
-
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
@@ -55,129 +59,243 @@ const Header: React.FC<HeaderProps> = () => {
     }
   };
 
+  const navigationItems = [
+    { label: 'Home', href: '/' },
+    { label: 'Features', href: '#benefits' },
+    { label: 'How it Works', href: '#how-it-works' },
+    { label: 'API', href: '#api' },
+    { label: 'Pricing', href: '#pricing' },
+    { label: 'Success Stories', href: '#success-stories' }
+  ];
+
+  const userMenuItems = user ? [
+    {
+      label: 'My Dashboard',
+      icon: 'chart-bar',
+      onClick: () => setIsSettingsModalOpen(true)
+    },
+    {
+      label: 'Settings',
+      icon: 'cog',
+      onClick: () => setIsSettingsModalOpen(true)
+    },
+    {
+      label: 'My Videos',
+      icon: 'video',
+      onClick: () => window.location.href = '#my-videos'
+    },
+    {
+      label: 'Subscription',
+      icon: 'credit-card',
+      onClick: () => setIsSettingsModalOpen(true)
+    },
+    {
+      label: 'Log out',
+      icon: 'sign-out-alt',
+      onClick: handleLogout
+    }
+  ] : [
+    {
+      label: 'Log in',
+      icon: 'sign-in-alt',
+      onClick: () => setIsLoginModalOpen(true)
+    },
+    {
+      label: 'Sign up',
+      icon: 'user-plus',
+      onClick: () => setIsSignupModalOpen(true)
+    }
+  ];
+
   const DynamicLoginModal = dynamic(() => import('./LoginModal'), { ssr: false });
   const DynamicSignupModal = dynamic(() => import('./SignupModal'), {
     ssr: false,
   });
   const DynamicSettingsModal = dynamic(() => import('@/components/SettingsModal'), { ssr: false });
 
+  const mobileMenuVariants = {
+    closed: { x: "100%", transition: { duration: 0.3 } },
+    open: { x: 0, transition: { duration: 0.3 } }
+  };
+
+  const currentTheme = theme === 'system' ? systemTheme : theme;
+
+  const logoSrc = {
+    desktop: {
+      dark: '/assets/images/logo/logo-light.png',
+      light: '/assets/images/logo/logo-dark.png'
+    },
+    mobile: {
+      dark: '/assets/images/logo/logo-mobile-light.png',
+      light: '/assets/images/logo/logo-mobile-dark.png'
+    }
+  };
+
   return (
-    <>
-      <header className="bg-golding-orange text-black dark:text-white p-4">
-        <div className="container mx-auto flex flex-row justify-between items-center">
-          <h1 className="text-3 md:text-4 font-bold tracking-wide uppercase">
-            <a href="/">Story Time</a>
-          </h1>
-          <nav
-            className={`${
-              isOpen
-                ? 'flex flex-col absolute top-full left-0 w-full bg-golding-orange text-black dark:text-white p-4'
-                : 'hidden'
-            } md:flex md:items-center md:space-x-4 md:static md:bg-transparent`}
+    <motion.header
+      variants={fadeIn}
+      initial="initial"
+      animate="animate"
+      className="sticky top-0 sticky-header bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-md z-99"
+    >
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16" style={{
+                  zIndex: 'var(--z-dropdown)',
+                  position: 'relative'
+                }}>
+          {/* Updated Logo Section */}
+          <motion.a
+            href="/"
+            className="flex items-center space-x-2"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <ul className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4 justify-center">
-              <li>
-                <a href="/" className="hover:underline">
-                  Home
-                </a>
-              </li>
-              <li>
-                <a href="#api" className="hover:underline">
-                  API
-                </a>
-              </li>
-              <li>
-                <a href="#story" className="hover:underline">
-                  Story Generator
-                </a>
-              </li>
-              <li>
-                <a href="#pricing" className="hover:underline">
-                  Pricing
-                </a>
-              </li>
-              <li>
-                <a href="#about" className="hover:underline">
-                  About
-                </a>
-              </li>
-            </ul>
-          </nav>
-          <div className="flex items-center space-x-4">
-            <ModeToggle />
+            <div className="relative w-[100px] h-[40px] md:h-[50px]">
+              {mounted && (
+                <>
+                  <OptimizedImage
+                    src={currentTheme === 'dark' ? logoSrc.desktop.dark : logoSrc.desktop.light}
+                    alt="Story Time"
+                    fill
+                    className="hidden md:block object-contain"
+                    priority
+                    sizes="(max-width: 768px) 0px, 100px"
+                  />
+                  <OptimizedImage
+                    src={currentTheme === 'dark' ? logoSrc.mobile.dark : logoSrc.mobile.light}
+                    alt="Story Time"
+                    fill
+                    className="block md:hidden object-contain"
+                    priority
+                    sizes="(max-width: 768px) 80px, 0px"
+                  />
+                </>
+              )}
+            </div>
+
+          </motion.a>
+
+          {/* Desktop Navigation */}
+          <motion.nav
+            variants={stagger}
+            initial="initial"
+            animate="animate"
+            className="hidden md:flex space-x-7"
+          >
+            {navigationItems.map((item) => (
+              <motion.a
+                key={item.href}
+                href={item.href}
+                variants={slideIn}
+                whileHover={{ y: -2 }}
+                className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white
+                         transition-colors duration-200"
+              >
+                {item.label}
+              </motion.a>
+            ))}
+          </motion.nav>
+
+          {/* Right side actions with animations */}
+          <motion.div
+            variants={stagger}
+            className="flex items-center space-x-5"
+          >
+            <div className="hidden md:flex">
             <CurrencySwitch />
+            </div>
+            <ModeToggle />
+
+            {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="relative h-8 w-8 rounded-full ml-2 mr-2"
-                  ref={dropdownButtonRef}
-                >
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   {user ? (
-                    user.email ? user.email.split('@')[0] : 'User'
+                    <img
+                      src={user.photoURL || `/avatars/${user.email?.charAt(0).toLowerCase()}.png`}
+                      alt="Profile"
+                      className="h-8 w-8 rounded-full"
+                    />
                   ) : (
-                    'Guest'
+                    <i className="fas fa-user" />
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
-                {user ? (
+              <DropdownMenuContent
+                align="end"
+                className="w-56 mt-2" // Added margin top for better spacing
+                style={{
+                  zIndex: 'var(--z-dropdown)',
+                  position: 'relative'
+                }}
+              >
+                {user && (
                   <>
-                    <DropdownMenuItem onClick={() => setIsSettingsModalOpen(true)}>
-                      My Account
-                    </DropdownMenuItem>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium">{user.displayName || user.email}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setIsSettingsModalOpen(true)}>
-                      <PaymentSection />
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout}>
-                      Log out
-                    </DropdownMenuItem>
-                  </>
-                ) : (
-                  <>
-                    <DropdownMenuItem onClick={() => setIsLoginModalOpen(true)}>
-                      Log in
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setIsSignupModalOpen(true)}>
-                      Sign up
-                    </DropdownMenuItem>
                   </>
                 )}
+                {userMenuItems.map((item, index) => (
+                  <DropdownMenuItem
+                    key={index}
+                    onClick={item.onClick}
+                    className="cursor-pointer"
+                  >
+                    <i className={`fas fa-${item.icon} w-4 h-4 mr-2`} />
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <div className="md:hidden ml-auto">
-              <button
-                onClick={toggleMenu}
-                className="text-black dark:text-white focus:outline-none"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M4 6h16M4 12h16m-7 6h7"
-                  ></path>
-                </svg>
-              </button>
-            </div>
-          </div>
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-4"
+              onClick={toggleMenu}
+            >
+              <i className={`fas fa-${isOpen ? 'times' : 'bars'}`} />
+            </button>
+          </motion.div>
         </div>
-        <MobileMenu
-          isOpen={isOpen}
-          onClose={toggleMenu}
-          setIsLoginModalOpen={setIsLoginModalOpen}
-          setIsSignupModalOpen={setIsSignupModalOpen}
-        />
-      </header>
+      </div>
+
+      {/* Mobile Navigation */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            variants={mobileMenuVariants}
+            initial="closed"
+            animate="open"
+            exit="closed"
+            className="md:hidden fixed inset-y-0 right-0 w-full max-w-sm bg-white dark:bg-gray-900 shadow-xl"
+            style={{
+              zIndex: 'var(--z-dropdown)',
+              position: 'relative'
+            }}
+          >
+            <nav className="px-4 pt-2 pb-4 space-y-2">
+              {navigationItems.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="block py-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                  onClick={() => setIsOpen(false)}
+                >
+                  {item.label}
+                </a>
+              ))}
+            </nav>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+
+      {/* Modals */}
       {hasMounted && (
         <>
           <DynamicLoginModal
@@ -198,7 +316,7 @@ const Header: React.FC<HeaderProps> = () => {
           />
         </>
       )}
-    </>
+    </motion.header>
   );
 };
 

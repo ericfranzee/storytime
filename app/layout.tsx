@@ -15,7 +15,13 @@ import { metadata } from "./metadata";
 import { Toaster } from "@/components/ui/toaster"
 import { ToastProvider } from "@/components/ui/toast"
 import { CurrencyProvider } from "@/lib/currency-context"
-
+import TestimonialsSection from "@/components/TestimonialsSection"
+import DemoSection from "@/components/DemoSection"
+import BenefitsSection from "@/components/BenefitsSection"
+import SuccessStoriesSection from "@/components/SuccessStoriesSection"
+import HowItWorksSection from "@/components/HowItWorksSection"
+import { motion, AnimatePresence } from 'framer-motion';
+import { usePathname } from 'next/navigation' // Add this import
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -26,28 +32,49 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const pathname = usePathname(); // Use this instead of window.location.pathname
+
   return (
     <html lang="en" {...metadata}>
       <head>
         <link rel="icon" href="/favicon.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </head>
-      <body className={`${inter.className} flex flex-col min-h-screen`}>
-        <CurrencyProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <Header />
-            <HeroSection />
-            <main className="flex-grow container mx-auto py-8 px-4">
-              <StoryToVideo />
-              {children}
-              <ApiSection />
-              <PricingPage />
-            </main>
-            <Footer />
-            <BackToTopButton />
-            <Toaster />
-          </ThemeProvider>
-        </CurrencyProvider>
+      <body className={`${inter.className} relative antialiased`}>
+        <div id="modal-root" />
+        
+        <div className="flex min-h-screen flex-col">
+          <CurrencyProvider>
+            <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={pathname} // Use pathname instead of window.location.pathname
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Header />
+                  <HeroSection />
+                  <main className="flex-grow container mx-auto py-8 px-4">
+                    <BenefitsSection />
+                    <HowItWorksSection />
+                    <DemoSection />
+                    <StoryToVideo />
+                    <SuccessStoriesSection />
+                    <TestimonialsSection />
+                    <ApiSection />
+                    <PricingPage />
+                    {children}
+                  </main>
+                  <Footer />
+                </motion.div>
+              </AnimatePresence>
+              <BackToTopButton />
+              <Toaster />
+            </ThemeProvider>
+          </CurrencyProvider>
+        </div>
         <script src="https://js.paystack.co/v2/inline.js"></script>
       </body>
     </html>

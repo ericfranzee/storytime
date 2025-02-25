@@ -1,0 +1,46 @@
+#modal-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+#modal-root > * {
+  pointer-events: auto;
+}
+
+/* Z-index hierarchy */
+:root {
+  --z-header: 99;
+  --z-dropdown: 100;
+  --z-notifications: 150;
+  --z-modal-backdrop: 200;
+  --z-modal: 250;
+}
+
+/* Dropdown styles */
+[data-radix-popper-content-wrapper] {
+  z-index: var(--z-dropdown) !important;
+}
+
+/* Toast notifications */
+.toast-viewport {
+  z-index: var(--z-notifications) !important;
+}
+
+/* Header */
+.sticky-header {
+  z-index: var(--z-header) !important;
+}
+
+/* Modal */
+.modal-backdrop {
+  z-index: var(--z-modal-backdrop) !important;
+}
+
+.modal-content {
+  z-index: var(--z-modal) !important;
+}

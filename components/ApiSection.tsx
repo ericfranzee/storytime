@@ -1,11 +1,64 @@
 "use client"
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ApiSection = () => {
   const codeRef = useRef(null);
   const highlighted = useRef(false);
+
+  const apiExamples = {
+    curl: `curl -X POST https://api.storytime.africa/v1/generate \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "story": "Once upon a time in Africa...",
+    "bg_sound": "traditional",
+    "voice": "en-NG-Female",
+    "storytype": "folktale"
+  }'`,
+    python: `import requests
+
+api_key = 'YOUR_API_KEY'
+url = 'https://api.storytime.africa/v1/generate'
+
+payload = {
+    'story': 'Once upon a time in Africa...',
+    'bg_sound': 'traditional',
+    'voice': 'en-NG-Female',
+    'storytype': 'folktale'
+}
+
+headers = {
+    'Authorization': f'Bearer {api_key}',
+    'Content-Type': 'application/json'
+}
+
+response = requests.post(url, json=payload, headers=headers)
+video_url = response.json()['video_url']`,
+    node: `const axios = require('axios');
+
+const generateVideo = async () => {
+  const apiKey = 'YOUR_API_KEY';
+  const url = 'https://api.storytime.africa/v1/generate';
+
+  const payload = {
+    story: 'Once upon a time in Africa...',
+    bg_sound: 'traditional',
+    voice: 'en-NG-Female',
+    storytype: 'folktale'
+  };
+
+  const headers = {
+    'Authorization': \`Bearer \${apiKey}\`,
+    'Content-Type': 'application/json'
+  };
+
+  const response = await axios.post(url, payload, { headers });
+  const videoUrl = response.data.video_url;
+};`
+  };
 
   useEffect(() => {
     if (codeRef.current && !highlighted.current) {
@@ -15,43 +68,102 @@ const ApiSection = () => {
   }, [codeRef]);
 
   return (
-    <div className="container mx-auto mt-10 p-4 md:p-8" id="api">
-      <div className="flex flex-col md:flex-row w-full">
-        <div className="w-full md:w-1/2 pr-4 mb-4 md:mb-0">
-          <h2 className="text-3xl font-bold mb-4">Integrate Our API</h2>
-          <p className="text-lg mb-4">
-            Enhance your application with our powerful API. Seamlessly integrate our services to create stunning videos effortlessly.
-          </p>
-          <ul className="list-disc pl-5 text-lg">
-            <li>Customizable video creation</li>
-            <li>Support for various story types</li>
-            <li>Background sound options</li>
-            <li>Voice selection for narrations</li>
-            <li>Easy integration with your existing applications</li>
-          </ul>
-        </div>
-        <div className="w-full md:w-1/2 pl-4">
-          <div className="bg-white p-4 rounded-lg text-black shadow-md">
-            <h3 className="text-xl font-semibold mb-2">API Example</h3>
-            <div className="relative">
-              <pre className="bg-gray-800 text-gray-100 p-4 rounded overflow-x-auto">
-                <code ref={codeRef} className="language-json">
-                  {`POST https://api.ericfranzee.com/storytime\n\nBody:\n{\n  "story": "value",\n  "bg_sound": "value",\n  "voice": "value",\n  "storytype": "value"\n}`}
-                </code>
-              </pre>
-              <button
-                className="absolute top-2 right-2 bg-gray-700 text-gray-300 hover:text-white p-2 rounded text-sm focus:outline-none"
-                onClick={() => {
-                  navigator.clipboard.writeText(((codeRef.current as unknown) as HTMLElement)?.textContent || '');
-                }}
-              >
-                Copy
-              </button>
+    <section className="py-16 bg-gray-50 dark:bg-gray-900" id="api">
+      <div className="container mx-auto px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold mb-4">Developer API</h2>
+            <p className="text-lg text-gray-600 dark:text-gray-300">
+              Integrate our powerful video generation capabilities directly into your applications
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            <div className="space-y-4">
+              <h3 className="text-2xl font-semibold">Features</h3>
+              <ul className="space-y-2">
+                <li className="flex items-center">
+                  <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                  </svg>
+                  RESTful API with JSON responses
+                </li>
+                <li className="flex items-center">
+                  <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                  </svg>
+                  Webhook notifications
+                </li>
+                <li className="flex items-center">
+                  <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                  </svg>
+                  Multiple voice options
+                </li>
+                <li className="flex items-center">
+                  <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                  </svg>
+                  Customizable backgrounds
+                </li>
+              </ul>
             </div>
+
+            <div className="space-y-4">
+              <h3 className="text-2xl font-semibold">Getting Started</h3>
+              <ol className="list-decimal list-inside space-y-2">
+                <li>Sign up for an API key</li>
+                <li>Choose your integration method</li>
+                <li>Make your first API call</li>
+                <li>Handle webhook responses</li>
+              </ol>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <Tabs defaultValue="curl" className="w-full">
+              <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                <TabsList>
+                  <TabsTrigger value="curl">cURL</TabsTrigger>
+                  <TabsTrigger value="python">Python</TabsTrigger>
+                  <TabsTrigger value="node">Node.js</TabsTrigger>
+                </TabsList>
+              </div>
+
+              {Object.entries(apiExamples).map(([lang, code]) => (
+                <TabsContent key={lang} value={lang}>
+                  <div className="relative">
+                    <pre className="p-4 overflow-x-auto">
+                      <code className={`language-${lang}`}>{code}</code>
+                    </pre>
+                    <button
+                      className="absolute top-2 right-2 bg-gray-700 text-gray-300 hover:text-white p-2 rounded"
+                      onClick={() => {
+                        navigator.clipboard.writeText(code);
+                      }}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </TabsContent>
+              ))}
+            </Tabs>
+          </div>
+
+          <div className="mt-12 text-center">
+            <a
+              href="#"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              View Full Documentation
+              <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 

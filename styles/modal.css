@@ -1,0 +1,41 @@
+.modal-backdrop {
+  @apply fixed inset-0 bg-black/50 z-[9999] backdrop-blur-sm;
+}
+
+.modal-container {
+  @apply fixed inset-0 overflow-y-auto z-[10000];
+}
+
+.modal-wrapper {
+  @apply min-h-full flex items-center justify-center p-4 text-center sm:p-0;
+}
+
+.modal-content {
+  @apply relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-auto
+         transform transition-all duration-300 ease-out;
+}
+
+.modal-content-wide {
+  @apply max-w-4xl;
+}
+
+.modal-body {
+  @apply p-6 overflow-y-auto max-h-[calc(100vh-8rem)];
+}
+
+/* Animation classes */
+.modal-enter {
+  @apply opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95;
+}
+
+.modal-enter-active {
+  @apply opacity-100 translate-y-0 sm:scale-100;
+}
+
+.modal-exit {
+  @apply opacity-100 translate-y-0 sm:scale-100;
+}
+
+.modal-exit-active {
+  @apply opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95;
+}

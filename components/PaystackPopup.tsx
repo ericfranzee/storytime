@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import axios from 'axios';
-import { useToast } from "@/components/ui/use-toast";
+import { showToast } from "@/lib/toast-utils";
 import { useCurrency } from '@/lib/currency-context';
 
 declare global {
@@ -13,17 +13,24 @@ declare global {
 interface PaystackPopupProps {
   amount: number;
   metadata: Record<string, any>;
+  onSuccess?: () => void;
+  onStart?: () => void;
 }
 
-const PaystackPopup: React.FC<PaystackPopupProps> = ({ amount, metadata }) => {
+const PaystackPopup: React.FC<PaystackPopupProps> = ({ 
+  amount, 
+  metadata, 
+  onSuccess, 
+  onStart 
+}) => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { currency, conversionRate } = useCurrency();
 
   useEffect(() => {
     if (user) {
       const initializeTransaction = async () => {
         try {
+          onStart?.();
           const updatedMetadata = { ...metadata, userId: user.uid };
 
           // Convert amount to the selected currency
@@ -47,7 +54,7 @@ const PaystackPopup: React.FC<PaystackPopupProps> = ({ amount, metadata }) => {
             currency: currency,
             metadata: updatedMetadata,
             onClose: () => {
-              toast({ title: "Payment window closed.", variant: "default" });
+              showToast.info("Payment Cancelled", "Payment window was closed.");
             },
             callback: async (response: any) => {
               console.log('Paystack response', response);
@@ -57,21 +64,31 @@ const PaystackPopup: React.FC<PaystackPopupProps> = ({ amount, metadata }) => {
                   metadata: updatedMetadata,
                 });
                 console.log('Subscription update response:', updateSubscriptionResponse.data);
-                toast({ title: "Payment successful!", variant: "default" });
+                showToast.success("Payment Successful", "Your subscription has been updated.");
+                onSuccess?.();
               } catch (error: any) {
                 console.error('Error updating subscription:', error);
-                toast({ title: "Payment failed.", variant: "destructive" });
+                showToast.error("Payment Failed", "Could not update subscription. Please try again.");
               }
             },
           });
         } catch (error) {
           console.error('Error initializing Paystack transaction:', error);
+          showToast.error("Transaction Failed", "Could not initialize payment.");
         }
       };
 
       initializeTransaction();
     }
-  }, [user, amount, metadata, currency, conversionRate]);
+
+    // Cleanup function
+    return () => {
+      const paymentStatus = localStorage.getItem('paymentStatus');
+      if (paymentStatus !== 'completed') {
+        localStorage.removeItem('paymentStatus');
+      }
+    };
+  }, [user, amount, metadata, currency, conversionRate, onSuccess, onStart]);
 
   return null;
 };

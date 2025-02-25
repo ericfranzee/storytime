@@ -1,12 +1,16 @@
-"use client"
-
-import { useState, useEffect } from "react"
+"use client";
+import { motion, AnimatePresence } from 'framer-motion';
+import { fadeIn, slideUp, scale, containerStagger, itemFadeIn } from '@/lib/animation-variants';
+import AnimatedButton from '@/components/ui/animations/AnimatedButton';
+import ProgressBar from '@/components/ui/animations/ProgressBar';
+import SuccessCheckmark from '@/components/ui/animations/SuccessCheckmark';
+import { useState, useEffect, useRef } from "react"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/hooks/useAuth"
-import { useToast } from "@/components/ui/use-toast"
-import { Toaster } from "@/components/ui/toaster"
+import { useToast } from "@/hooks/use-toast"; // Update this import
+import { Toaster } from "@/components/ui/toaster"; // Update this import
 import LoginModal from "@/components/LoginModal"
 import axios, { AxiosResponse } from "axios"
 import { Input } from "@/components/ui/input"
@@ -20,12 +24,21 @@ import {
 import { voiceOptions } from "./voice-options"
 import { getFirestore, doc, getDoc, setDoc, increment, DocumentData } from "firebase/firestore";
 import { getUserSubscription, incrementVideoUsage } from "@/app/firebase";
+import { showToast } from "@/lib/toast-utils";
+import ErrorAlert from '@/components/ui/feedback/ErrorAlert';
+import LoadingSpinner from '@/components/ui/loading/LoadingSpinner';
+import ProcessingSteps from '@/components/ui/loading/ProcessingSteps';
+import SuccessAlert from '@/components/ui/feedback/SuccessAlert';
+import LoadingOverlay from '@/components/ui/loading/LoadingOverlay';
+import { generateGeminiResponse } from '@/lib/gemini-utils';
+import { Loader2 } from "lucide-react"; // For loading spinner
+import { checkRateLimit, getRemainingLimit, getResetTime } from '@/lib/rate-limiter';
 
 const MAX_CHARACTERS = 1000
 const storyTypes = ["African Folktales", "History", "News", "Bedtime Stories"]
 const defaultStoryType = "African Folktales"
-let audio: HTMLAudioElement; // Declare audio variable
-let voiceAudio: HTMLAudioElement; // Declare voice audio variable
+let audio: HTMLAudioElement | null = null;
+let voiceAudio: HTMLAudioElement | null = null;
 
 export default function StoryToVideo() {
   const { user } = useAuth();
@@ -35,6 +48,27 @@ export default function StoryToVideo() {
   const [isUnrestricted, setIsUnrestricted] = useState(false);
   const unrestrictedEmails = process.env.UNRESTRICTED_EMAILS ? JSON.parse(process.env.UNRESTRICTED_EMAILS) : [];
   const db = getFirestore();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false); // Add this state
+  const [error, setError] = useState<string | null>(null);
+  const [processingStage, setProcessingStage] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [processingSteps, setProcessingSteps] = useState([
+    { label: 'Analyzing story content', status: 'waiting' },
+    { label: 'Generating video scenes', status: 'waiting' },
+    { label: 'Processing audio', status: 'waiting' },
+    { label: 'Finalizing video', status: 'waiting' }
+  ]);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+  const processingStages = {
+    ANALYZING: 'Analyzing your story content...',
+    GENERATING: 'Generating video scenes...',
+    AUDIO: 'Processing audio and voiceover...',
+    FINALIZING: 'Finalizing your video...'
+  };
 
   useEffect(() => {
     if (user) {
@@ -68,10 +102,9 @@ export default function StoryToVideo() {
   const { toast } = useToast();
   const [showMusicUrlInput, setShowMusicUrlInput] = useState(false);
   const [apiMusicUrls, setApiMusicUrls] = useState({}); // State to store music URLs from API
+  const [isGeneratingStory, setIsGeneratingStory] = useState(false);
 
   useEffect(() => {
-    audio = new Audio(); // Initialize audio here, on client side only
-    voiceAudio = new Audio(); // Initialize voice audio here, on client side only
     setIsMounted(true);
 
     async function fetchWebhookUrl() {
@@ -110,118 +143,178 @@ export default function StoryToVideo() {
     { value: "others", label: "Others" },
   ]
 
-  useEffect(() => {
-    let currentMusicUrl: string = "";
-    let playUrl;
-    if (music === "others") {
-      currentMusicUrl = musicUrl ?? "";
-    } else {
-      currentMusicUrl = apiMusicUrls[music as keyof typeof apiMusicUrls] ?? "";
+  const handleMusicPreview = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent form submission
+    e.stopPropagation(); // Stop event bubbling
+    
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
     }
-    audio.src = currentMusicUrl;
-  }, [music, musicUrl, apiMusicUrls]);
 
-const handleSubmit = async (e: React.FormEvent) => {
+    let playUrl = music === "others" ? musicUrl : apiMusicUrls[music as keyof typeof apiMusicUrls];
+    
+    if (!playUrl) {
+      showToast.error("Preview Failed", "No music URL available for this option.");
+      return;
+    }
+
+    try {
+      if (audioRef.current.src !== playUrl) {
+        audioRef.current.src = playUrl;
+      }
+      
+      if (!isAudioPlaying) {
+        await audioRef.current.play();
+        setIsAudioPlaying(true);
+      } else {
+        audioRef.current.pause();
+        setIsAudioPlaying(false);
+      }
+    } catch (e) {
+      console.error("Error playing music:", e);
+      showToast.error("Preview Failed", "Could not play the selected music.");
+    }
+  };
+
+  const updateProcessingStep = (index: number, status: 'waiting' | 'processing' | 'completed' | 'error') => {
+    setProcessingSteps(steps => 
+      steps.map((step, i) => 
+        i === index ? { ...step, status } : step
+      )
+    );
+  };
+
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    
+    if (!story.trim()) {
+      errors.story = 'Story content is required';
+    }
+    if (story.length > MAX_CHARACTERS) {
+      errors.story = 'Story exceeds maximum length';
+    }
+    if (!selectedStoryType) {
+      errors.storyType = 'Please select a story type';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+    
+    if (!validateForm()) {
+      return;
+    }
+
     if (!isLoggedIn) {
       setShowLoginModal(true);
       return;
     }
 
     if (!subscription) {
-      toast({
-        title: "Error",
-        description: "Could not retrieve subscription information.",
-        variant: "destructive",
-      });
+      setError('sub/subscription-required');
       return;
     }
 
     if (!isUnrestricted && subscription.usage >= subscription.videoLimit) {
-      toast({
-        title: "Limit Reached",
-        description: "You have reached your monthly video generation limit.",
-        variant: "destructive",
-      });
+      setError('sub/limit-reached');
       return;
     }
 
     if (story.length > MAX_CHARACTERS || story.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid story summary.",
-        variant: "destructive",
-      });
+      setError('video/invalid-input');
       return;
     }
 
     setIsLoading(true);
     setProgress(0);
 
-    const musicParameter = music === "others" ? musicUrl : music;
-
-    let response: AxiosResponse<any>;
     try {
-      response = await axios.post(webhookUrl, {
-        story: story,
-        music: musicParameter,
-        voice: voice,
-        storyType: selectedStoryType,
-      }, {
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total!
-          );
-          setProgress(percentCompleted);
-        },
-      });
-
-      // Only increment usage if we got a successful response with a video URL
-      if (response.data.videoUrl) {
-        await incrementVideoUsage(user.uid);
-        setVideoUrl(response.data.videoUrl);
-        toast({ title: "Success", description: "Your video has been generated successfully!", variant: "default" });
-
-        // Start the timer
-        setIsWaiting(true);
-        setIsLoadingVideo(true);
-        const interval = setInterval(() => {
-          setCountdown((prevCountdown) => {
-            if (prevCountdown <= 1) {
-              clearInterval(interval);
-              setIsWaiting(false);
-              setIsLoadingVideo(false);
-              setVideoUrl(response.data.videoUrl);
-              toast({
-                title: "Download Ready",
-                description: "Your video is ready for download.",
-              });
-              return 0;
-            }
-            return prevCountdown - 1;
-          });
-          setWaitTime((prevTime) => {
-            if (prevTime <= 1) {
-              clearInterval(interval);
-              setIsWaiting(false);
-              setIsLoadingVideo(false);
-              setVideoUrl(response.data.videoUrl);
-              toast({
-                title: "Download Ready",
-                description: "Your video is ready for download.",
-              });
-              return 0;
-            }
-            return prevTime - 1;
-          });
-        }, 1000);
+      // Update processing steps
+      for (let i = 0; i < processingSteps.length; i++) {
+        setCurrentStep(i);
+        updateProcessingStep(i, 'processing');
+        
+        // Simulate processing time for each step
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        updateProcessingStep(i, 'completed');
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred while generating your video. Please try again.",
-        variant: "destructive",
+
+      const musicParameter = music === "others" ? musicUrl : music;
+
+      let response: AxiosResponse<any>;
+      try {
+        response = await axios.post(webhookUrl, {
+          story: story,
+          music: musicParameter,
+          voice: voice,
+          storyType: selectedStoryType,
+        }, {
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total!
+            );
+            setProgress(percentCompleted);
+          },
+        });
+
+        // Only increment usage if we got a successful response with a video URL
+        if (response.data.videoUrl) {
+          await incrementVideoUsage(user.uid);
+          setVideoUrl(response.data.videoUrl);
+          showToast.success("Video Generation Started", "Your video is being processed.");
+
+          // Start the timer
+          setIsWaiting(true);
+          setIsLoadingVideo(true);
+          const interval = setInterval(() => {
+            setCountdown((prevCountdown) => {
+              if (prevCountdown <= 1) {
+                clearInterval(interval);
+                setIsWaiting(false);
+                setIsLoadingVideo(false);
+                setVideoUrl(response.data.videoUrl);
+                showToast.success("Video Ready", "Your video is ready for download.");
+                return 0;
+              }
+              return prevCountdown - 1;
+            });
+            setWaitTime((prevTime) => {
+              if (prevTime <= 1) {
+                clearInterval(interval);
+                setIsWaiting(false);
+                setIsLoadingVideo(false);
+                setVideoUrl(response.data.videoUrl);
+                showToast.success("Video Ready", "Your video is ready for download.");
+                return 0;
+              }
+              return prevTime - 1;
+            });
+          }, 1000);
+        }
+      } catch (error) {
+        showToast.error("Generation Failed", "Could not generate video. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+
+      setSuccessMessage('Your video has been generated successfully!');
+    } catch (error: any) {
+      processingSteps.forEach((_, index) => {
+        if (index >= currentStep) {
+          updateProcessingStep(index, 'error');
+        }
       });
+      setError(error.code || 'video/generation-failed');
+      showToast.error(
+        "Generation Failed", 
+        error instanceof Error ? error.message : "Please try again"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -229,69 +322,42 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(videoUrl)
-    toast({
-      title: "Copied!",
-      description: "Video link copied to clipboard.",
-    })
+    showToast.success("Link Copied", "Video link copied to clipboard.");
   }
 
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const handleVoicePlayPause = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleVoicePreview = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent form submission
+    e.stopPropagation(); // Stop event bubbling
+    
+    if (!voiceAudioRef.current) {
+      voiceAudioRef.current = new Audio();
+    }
+
     const voiceUrl = process.env.NEXT_PUBLIC_VOICE_URL?.replace('{value}', voice);
     if (!voiceUrl) {
-      toast({
-        title: "Error",
-        description: "Voice URL is not defined in the environment variables.",
-        variant: "destructive",
-      });
+      showToast.error("Error", "Voice URL is not configured.");
       return;
     }
-    voiceAudio.src = voiceUrl;
 
-    if (voiceUrl) {
-      try {
-        new URL(voiceUrl);
-        if (isPlaying) {
-          voiceAudio.pause();
-          setIsPlaying(false);
-        } else {
-          voiceAudio.play().then(() => {
-            setIsPlaying(true);
-          }).catch((error: Error) => {
-            if (error.name === 'AbortError') {
-              voiceAudio.load(); // Reload the audio source
-              voiceAudio.play().then(() => {
-                setIsPlaying(true);
-              }).catch((error: Error) => {
-                if (error.name === 'AbortError') {
-                  console.error('The play() request was interrupted by a new load request.');
-                } else {
-                  console.error('Error playing audio:', error);
-                }
-              });
-            } else {
-              console.error('Error playing audio:', error);
-            }
-          });
-        }
-      } catch (e) {
-        console.error("Error creating URL:", e);
-        toast({
-          title: "Error",
-          description: "Invalid voice URL.",
-          variant: "destructive",
-        });
+    try {
+      if (voiceAudioRef.current.src !== voiceUrl) {
+        voiceAudioRef.current.src = voiceUrl;
       }
-    } else {
-      toast({
-        title: "Error",
-        description: "No voice URL available for this option.",
-        variant: "destructive",
-      });
+      
+      if (isPlaying) {
+        voiceAudioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        await voiceAudioRef.current.play();
+        setIsPlaying(true);
+      }
+    } catch (error) {
+      console.error("Error playing voice:", error);
+      showToast.error("Error", "Failed to play voice preview.");
     }
-  }
+  };
 
   useEffect(() => {
     setShowMusicUrlInput(music === "others");
@@ -299,244 +365,450 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   const [selectedStoryType, setSelectedStoryType] = useState(defaultStoryType);
 
-  return (
-    <div id="story" className="w-full mx-auto space-y-8 p-8 bg-white dark:bg-gray-900 rounded-lg shadow-lg">
-      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} setIsSignupModalOpen={() => {}} isOpen={showLoginModal} onLoginSuccess={() => {}} />}
-      <div className="flex justify-between items-center">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Story To Video</h1>
-      </div>
-      <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-2 mb-4">
-        <span className="text-lg font-semibold text-gray-900 dark:text-white">Story Type:</span>
-        <div className="grid grid-cols-2 gap-2 md:flex md:flex-row md:items-center md:space-y-0 md:space-x-2">
-          {storyTypes.map((type) => (
-            <Button
-              key={type}
-              variant={selectedStoryType === type ? "default" : "outline"}
-              onClick={() => setSelectedStoryType(type)}
-              style={{ borderRadius: '30px' }}
-              className=""
-            >
-              {type}
-            </Button>
-          ))}
-        </div>
-      </div>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <Textarea
-            placeholder="Enter a summary message for the video to be generated..."
-            value={story}
-            onChange={(e) => setStory(e.target.value)}
-            maxLength={MAX_CHARACTERS}
-            className="h-60 w-full md:w-3/4 text-gray-900 dark:text-white"
-          />
-          <div className="flex justify-between text-sm text-muted-foreground dark:text-gray-400">
-            <span>
-              {story.length} / {MAX_CHARACTERS}
-            </span>
-            {story.length > MAX_CHARACTERS && <span className="text-destructive">Character limit exceeded</span>}
-            {story.length === 0 && !story && <span className="text-destructive">Summary message is required</span>}
-          </div>
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="music" className="block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Background Sound
-          </label>
-          <div className="flex items-start sm:items-center md:flex-row space-y-2 md:space-y-0 md:space-x-2">
-            <select
-              id="music"
-              className="block w-1/2 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 dark:text-white mobile-margin-top"
-              value={music}
-              onChange={(e) => setMusic(e.target.value)}
-            >
-              {musicOptions.map((option: { value: string; label: string }) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="ml-2"
-                    onClick={() => {
-                      let playUrl;
-                      if (music === "others") {
-                        playUrl = musicUrl || "";
-                      } else {
-                        playUrl = apiMusicUrls[music as keyof typeof apiMusicUrls] || "";
-                      }
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (voiceAudioRef.current) {
+        voiceAudioRef.current.pause();
+        voiceAudioRef.current = null;
+      }
+    };
+  }, []);
 
-                      if (playUrl) {
-                        try {
-                          new URL(playUrl);
-                          if (audio.paused) {
-                            audio.play();
-                          } else {
-                            audio.pause();
-                          }
-                        } catch (e) {
-                          console.error("Error creating URL:", e);
-                          toast({
-                            title: "Error",
-                            description: "Invalid music URL.",
-                            variant: "destructive",
-                          });
-                        }
-                      } else {
-                        toast({
-                          title: "Error",
-                          description: "No music URL available for this option.",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                  >
-                    {isMounted && !audio.paused ? (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-4 h-4"
-                      >
-                        <path d="M11 7H8V17H11V7Z" />{" "}
-                        <path d="M13 17H16V7H13V17Z" />
-                      </svg>
-                    ) : (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-4 h-4"
-                      >
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Preview Music
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </div>
-        {showMusicUrlInput && (
-          <div className="space-y-2">
-            <Label htmlFor="music-url" className="text-gray-900 dark:text-white">Music URL</Label>
-            <Input
-              id="music-url"
-              type="url"
-              placeholder="https://location.com/music.mp3"
-              value={musicUrl}
-              onChange={(e) => setMusicUrl(e.target.value)}
-              className="text-gray-900 dark:text-white"
-            />
-            <p className="text-sm text-muted-foreground dark:text-gray-400">
-              Make sure the link to music is public.
-            </p>
-          </div>
-        )}
-        <div className="space-y-2">
-          <label htmlFor="voice" className="block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Voice
-          </label>
-          <div className="flex items-start sm:items-center md:flex-row space-y-2 md:space-y-0 md:space-x-2">
-            <select
-              id="voice"
-              className="block w-1/2 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 dark:text-white mobile-margin-top"
-              value={voice}
-              onChange={(e) => setVoice(e.target.value)}
+  const generateStoryPrompt = async () => {
+    if (!user) {
+      setShowLoginModal(true);
+      showToast.error("Authentication Required", "Please login to generate stories");
+      return;
+    }
+
+    if (!selectedStoryType) {
+      showToast.error("Error", "Please select a story type first");
+      return;
+    }
+
+    // Check rate limit
+    if (!checkRateLimit(user.uid)) {
+      const resetTimeMs = getResetTime(user.uid);
+      const resetTimeSeconds = Math.ceil(resetTimeMs / 1000);
+      showToast.error(
+        "Rate Limit Exceeded",
+        `Please wait ${resetTimeSeconds} seconds before generating another story. Limit: 5 generations per minute.`
+      );
+      return;
+    }
+
+    const remainingLimit = getRemainingLimit(user.uid);
+    setIsGeneratingStory(true);
+
+    try {
+      const prompt = `Create a compelling ${selectedStoryType} story in less than 1000 characters. 
+        If it's an African Folktale, include moral lessons and cultural elements.
+        If it's History, focus on significant events and their impact.
+        If it's News, create a current event story with key details.
+        If it's a Bedtime Story, make it soothing and child-friendly.
+        The story should be engaging and well-structured.`;
+
+      const response = await generateGeminiResponse(prompt);
+      
+      if (response.success) {
+        setStory(response.text);
+        showToast.success(
+          "Story Generated", 
+          `Story created successfully! You have ${remainingLimit} generations remaining this minute.`
+        );
+      } else {
+        showToast.error("Generation Failed", response.error || "Failed to generate story");
+      }
+    } catch (error) {
+      showToast.error(
+        "Generation Failed", 
+        error instanceof Error ? error.message : "Failed to generate story"
+      );
+    } finally {
+      setIsGeneratingStory(false);
+    }
+  };
+
+  return (
+    <motion.div
+      variants={fadeIn}
+      initial="initial"
+      animate="animate"
+      className="w-full mx-auto space-y-8 p-4 sm:p-8 bg-white dark:bg-gray-900 rounded-lg shadow-lg relative" id="story"
+    >
+      {isLoading && (
+        <LoadingOverlay 
+          isLoading={isLoading}
+          message={processingStage || "Generating video..."}
+        />
+      )}
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} setIsSignupModalOpen={() => { }} isOpen={showLoginModal} onLoginSuccess={() => { }} />}
+      {error && (
+        <ErrorAlert
+          error={error}
+          onClose={() => setError(null)}
+          variant="inline"
+        />
+      )}
+      {successMessage && (
+        <SuccessAlert
+          message={successMessage}
+          onClose={() => setSuccessMessage(null)}
+          variant="inline"
+        />
+      )}
+      <motion.div
+        variants={containerStagger}
+        initial="initial"
+        animate="animate"
+        className="flex flex-col space-y-4"
+      >
+        <motion.h1 
+          variants={itemFadeIn}
+          className="text-4xl font-bold text-gray-900 dark:text-white"
+        >
+          Create Your Video
+        </motion.h1>
+        <motion.div 
+          variants={itemFadeIn}
+          className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg"
+        >
+          <h2 className="text-lg font-semibold mb-2">Tips for Better Results:</h2>
+          <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-300">
+            <li>Keep your story concise and focused</li>
+            <li>Include key details and emotional moments</li>
+            <li>Choose music that matches your story's mood</li>
+            <li>Select a voice that fits your narrative style</li>
+          </ul>
+        </motion.div>
+      </motion.div>
+
+      <motion.form
+        variants={containerStagger}
+        initial="initial"
+        animate="animate"
+        className="space-y-6"
+        onSubmit={handleSubmit}
+      >
+        <motion.div
+          variants={containerStagger}
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"
+        >
+          {storyTypes.map((type) => (
+            <motion.div
+              key={type}
+              variants={itemFadeIn}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              {voiceOptions.map((option: { value: string; label: string }) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              <TooltipProvider key={type}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={selectedStoryType === type ? "default" : "outline"}
+                      onClick={() => setSelectedStoryType(type)}
+                      className="rounded-full"
+                    >
+                      {type}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {getStoryTypeDescription(type)}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        <motion.div
+          variants={itemFadeIn}
+          className="relative"
+        >
+          <div className="relative">
+            <Textarea
+              placeholder="Enter a summary message for the video to be generated..."
+              value={story}
+              onChange={(e) => setStory(e.target.value)}
+              maxLength={MAX_CHARACTERS}
+              className="min-h-[200px] w-full md:w-4/4 transition-all duration-200 focus:ring-2 focus:ring-blue-500 pr-12"
+            />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="outline"
+                    type="button"
+                    variant="ghost"
                     size="icon"
-                    className="ml-2"
-                    onClick={handleVoicePlayPause}
+                    className="absolute right-4 top-4 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    onClick={generateStoryPrompt}
+                    disabled={isGeneratingStory}
                   >
-                    {isMounted && isPlaying ? (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-4 h-4"
-                      >
-                        <path d="M11 7H8V17H11V7Z" />{" "}
-                        <path d="M13 17H16V7H13V17Z" />
-                      </svg>
+                    {isGeneratingStory ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-4 w-4"
                       >
-                        <path d="M8 5v14l11-7z" />
+                        <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
                       </svg>
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  Preview Voice
+                <TooltipContent side="left">
+                  <p>Generate a story for me</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute right-4 bottom-4 text-sm text-gray-500"
+            >
+              {story.length} / {MAX_CHARACTERS}
+            </motion.div>
           </div>
-        </div>
-        <Button type="submit" disabled={isLoading || isWaiting || story.length > MAX_CHARACTERS} className="">
-          {isLoading ? "Generating..." : isWaiting ? "Please wait..." : "Generate Video"}
-        </Button>
-      </form>
-      {isLoading && (
-        <div className="space-y-2">
-          <Progress value={progress} className="w-full text-gray-900 dark:text-white" />
-          <p className="text-center text-sm text-muted-foreground dark:text-gray-400">{progress}% complete</p>
-        </div>
-      )}
-      {isWaiting && (
-        <div className="space-y-2">
-          <p className="text-center text-sm text-muted-foreground dark:text-gray-400">Please wait for 10 minutes as the video is being generated.</p>
-          <div id="countdown" className="text-center text-4xl font-bold mt-4 text-gray-900 dark:text-white">{formatTime(countdown)}</div>
-        </div>
-      )}
-      {videoUrl && (
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Your Video is Ready!</h2>
-          <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-            {isLoadingVideo ? (
-              <div className="spinner"></div>
-            ) : (
-              <video controls className="w-full h-full">
-                <source src={videoUrl} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            )}
-          </div>
-          <div className="flex space-x-2">
-            <Button asChild className="flex-1 ">
-              <a target="_blank" href={videoUrl} download>
-                Download Video
-              </a>
-            </Button>
-            <Button onClick={handleCopyLink} className="">
-              Copy Link
-            </Button>
-          </div>
-        </div>
-      )}
-      
-    </div>
+        </motion.div>
+
+        <motion.div
+          variants={containerStagger}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+        >
+          <motion.div variants={itemFadeIn}>
+            <label htmlFor="music" className="block text-sm font-medium text-gray-700 dark:text-gray-400">
+              Background Sound
+            </label>
+            <div className="flex items-start sm:items-center md:flex-row space-y-2 md:space-y-0 md:space-x-2">
+              <select
+                id="music"
+                className="block w-3/4 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 dark:text-white mobile-margin-top"
+                value={music}
+                onChange={(e) => setMusic(e.target.value)}
+              >
+                {musicOptions.map((option: { value: string; label: string }) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button" // Explicitly set type to button
+                      variant="outline"
+                      size="icon"
+                      className="ml-2"
+                      onClick={handleMusicPreview}
+                    >
+                      {isMounted && isAudioPlaying ? (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="w-4 h-4"
+                        >
+                          <path d="M11 7H8V17H11V7Z" />{" "}
+                          <path d="M13 17H16V7H13V17Z" />
+                        </svg>
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="w-4 h-4"
+                        >
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Preview Music
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </motion.div>
+
+          {showMusicUrlInput && (
+            <motion.div variants={itemFadeIn}>
+              <Label htmlFor="music-url" className="text-gray-900 dark:text-white">Music URL</Label>
+              <Input
+                id="music-url"
+                type="url"
+                placeholder="https://location.com/music.mp3"
+                value={musicUrl}
+                onChange={(e) => setMusicUrl(e.target.value)}
+                className="text-gray-900 dark:text-white"
+              />
+              <p className="text-sm text-muted-foreground dark:text-gray-400">
+                Make sure the link to music is public.
+              </p>
+            </motion.div>
+          )}
+
+          <motion.div variants={itemFadeIn}>
+            <label htmlFor="voice" className="block text-sm font-medium text-gray-700 dark:text-gray-400">
+              Voice
+            </label>
+            <div className="flex items-start sm:items-center md:flex-row space-y-2 md:space-y-0 md:space-x-2">
+              <select
+                id="voice"
+                className="block w-3/4 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 dark:text-white mobile-margin-top"
+                value={voice}
+                onChange={(e) => setVoice(e.target.value)}
+              >
+                {voiceOptions.map((option: { value: string; label: string }) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button" // Explicitly set type to button
+                      variant="outline"
+                      size="icon"
+                      className="ml-2"
+                      onClick={handleVoicePreview}
+                    >
+                      {isMounted && isPlaying ? (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="w-4 h-4"
+                        >
+                          <path d="M11 7H8V17H11V7Z" />{" "}
+                          <path d="M13 17H16V7H13V17Z" />
+                        </svg>
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="w-4 h-4"
+                        >
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Preview Voice
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        <motion.div variants={itemFadeIn}>
+          <AnimatedButton
+            type="submit"
+            isLoading={isLoading}
+            loadingText="Generating..."
+            disabled={isLoading || isWaiting || story.length > MAX_CHARACTERS}
+            className="w-full md:w-auto"
+          >
+            Generate Video
+          </AnimatedButton>
+        </motion.div>
+      </motion.form>
+
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-6"
+          >
+            <ProgressBar 
+              value={progress} 
+              showValue 
+              color="bg-blue-500"
+            />
+            <motion.div
+              variants={containerStagger}
+              initial="initial"
+              animate="animate"
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
+              {processingSteps.map((step, index) => (
+                <motion.div
+                  key={index}
+                  variants={itemFadeIn}
+                  className={`p-4 rounded-lg ${
+                    currentStep === index ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                  }`}
+                >
+                  {/* ...existing step content... */}
+                </motion.div>
+              ))}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {videoUrl && (
+          <motion.div
+            variants={scale}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="space-y-4"
+          >
+            <SuccessCheckmark />
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Your Video is Ready!</h2>
+            <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+              {isLoadingVideo ? (
+                <div className="spinner"></div>
+              ) : (
+                <video controls className="w-full h-full">
+                  <source src={videoUrl} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              )}
+            </div>
+            <div className="flex space-x-2">
+              <Button asChild className="flex-1 ">
+                <a target="_blank" href={videoUrl} download>
+                  Download Video
+                </a>
+              </Button>
+              <Button onClick={handleCopyLink} className="">
+                Copy Link
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
+}
+
+function getStoryTypeDescription(type: string): string {
+  const descriptions = {
+    "African Folktales": "Traditional stories passed down through generations, rich in culture and wisdom",
+    "History": "Historical events and figures brought to life through compelling visuals",
+    "News": "Current events transformed into engaging video content",
+    "Bedtime Stories": "Soothing tales perfect for children's entertainment and education"
+  };
+  return descriptions[type as keyof typeof descriptions] || "";
 }
