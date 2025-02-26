@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ModeToggle } from "./mode-toggle";
-import MobileMenu from "./MobileMenu";
 import { useAuth } from '@/hooks/useAuth';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/app/firebase';
@@ -62,11 +61,11 @@ const Header: React.FC<HeaderProps> = () => {
 
   const navigationItems = [
     { label: 'Home', href: '/' },
-    { label: 'Features', href: '#benefits' },
-    { label: 'How it Works', href: '#how-it-works' },
-    { label: 'API', href: '#api' },
-    { label: 'Pricing', href: '#pricing' },
-    { label: 'Success Stories', href: '#success-stories' }
+    { label: 'Features', href: '/#benefits' },
+    { label: 'How it Works', href: '/#how-it-works' },
+    { label: 'API', href: '/#api' },
+    { label: 'Pricing', href: '/#pricing' },
+    { label: 'Success Stories', href: '/#success-stories' }
   ];
 
   const userMenuItems = user ? [

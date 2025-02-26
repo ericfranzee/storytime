@@ -7,11 +7,11 @@ const Footer = () => {
     {
       title: "Product",
       links: [
-        { label: "Features", href: "#benefits" },
-        { label: "How it Works", href: "#how-it-works" },
-        { label: "Pricing", href: "#pricing" },
-        { label: "API", href: "#api" },
-        { label: "Success Stories", href: "#success-stories" }
+        { label: "Features", href: "/#benefits" },
+        { label: "How it Works", href: "/#how-it-works" },
+        { label: "Pricing", href: "/#pricing" },
+        { label: "API", href: "/#api" },
+        { label: "Success Stories", href: "/#success-stories" }
       ]
     },
     {
