@@ -34,7 +34,7 @@ import { generateGeminiResponse } from '@/lib/gemini-utils';
 import { Loader2 } from "lucide-react"; // For loading spinner
 import { checkRateLimit, getRemainingLimit, getResetTime } from '@/lib/rate-limiter';
 
-const MAX_CHARACTERS = 1000
+const MAX_CHARACTERS = 1500
 const storyTypes = ["African Folktales", "History", "News", "Bedtime Stories"]
 const defaultStoryType = "African Folktales"
 let audio: HTMLAudioElement | null = null;
@@ -146,13 +146,13 @@ export default function StoryToVideo() {
   const handleMusicPreview = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent form submission
     e.stopPropagation(); // Stop event bubbling
-    
+
     if (!audioRef.current) {
       audioRef.current = new Audio();
     }
 
     let playUrl = music === "others" ? musicUrl : apiMusicUrls[music as keyof typeof apiMusicUrls];
-    
+
     if (!playUrl) {
       showToast.error("Preview Failed", "No music URL available for this option.");
       return;
@@ -162,7 +162,7 @@ export default function StoryToVideo() {
       if (audioRef.current.src !== playUrl) {
         audioRef.current.src = playUrl;
       }
-      
+
       if (!isAudioPlaying) {
         await audioRef.current.play();
         setIsAudioPlaying(true);
@@ -177,8 +177,8 @@ export default function StoryToVideo() {
   };
 
   const updateProcessingStep = (index: number, status: 'waiting' | 'processing' | 'completed' | 'error') => {
-    setProcessingSteps(steps => 
-      steps.map((step, i) => 
+    setProcessingSteps(steps =>
+      steps.map((step, i) =>
         i === index ? { ...step, status } : step
       )
     );
@@ -186,7 +186,7 @@ export default function StoryToVideo() {
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
-    
+
     if (!story.trim()) {
       errors.story = 'Story content is required';
     }
@@ -205,7 +205,7 @@ export default function StoryToVideo() {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
-    
+
     if (!validateForm()) {
       return;
     }
@@ -238,10 +238,10 @@ export default function StoryToVideo() {
       for (let i = 0; i < processingSteps.length; i++) {
         setCurrentStep(i);
         updateProcessingStep(i, 'processing');
-        
+
         // Simulate processing time for each step
         await new Promise(resolve => setTimeout(resolve, 3000));
-        
+
         updateProcessingStep(i, 'completed');
       }
 
@@ -312,7 +312,7 @@ export default function StoryToVideo() {
       });
       setError(error.code || 'video/generation-failed');
       showToast.error(
-        "Generation Failed", 
+        "Generation Failed",
         error instanceof Error ? error.message : "Please try again"
       );
     } finally {
@@ -330,7 +330,7 @@ export default function StoryToVideo() {
   const handleVoicePreview = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent form submission
     e.stopPropagation(); // Stop event bubbling
-    
+
     if (!voiceAudioRef.current) {
       voiceAudioRef.current = new Audio();
     }
@@ -345,7 +345,7 @@ export default function StoryToVideo() {
       if (voiceAudioRef.current.src !== voiceUrl) {
         voiceAudioRef.current.src = voiceUrl;
       }
-      
+
       if (isPlaying) {
         voiceAudioRef.current.pause();
         setIsPlaying(false);
@@ -364,6 +364,11 @@ export default function StoryToVideo() {
   }, [music]);
 
   const [selectedStoryType, setSelectedStoryType] = useState(defaultStoryType);
+
+  const handleStoryTypeChange = (type: string) => {
+    setSelectedStoryType(type);
+    // No automatic submission
+  };
 
   useEffect(() => {
     return () => {
@@ -405,19 +410,39 @@ export default function StoryToVideo() {
     setIsGeneratingStory(true);
 
     try {
-      const prompt = `Create a compelling ${selectedStoryType} story in less than 1000 characters. 
-        If it's an African Folktale, include moral lessons and cultural elements.
-        If it's History, focus on significant events and their impact.
-        If it's News, create a current event story with key details.
-        If it's a Bedtime Story, make it soothing and child-friendly.
-        The story should be engaging and well-structured.`;
+      const prompt = `Create a ${selectedStoryType} story between 400-800 characters without headings or greetings.
+      If it's an African Folktale:
+      - Set in a traditional African village or wilderness
+      - Include cultural elements like traditional names, customs, and beliefs
+      - Feature animals, spirits, or village life
+      - Add a happy ending that reflects community values
+      
+      If it's History:
+      - Focus on a specific moment in time (year, era, or period)
+      - Include authentic historical figures and locations
+      - Describe the atmosphere, clothing, and setting of the time
+      - Show how this moment changed the course of events
+      
+      If it's News:
+      - Write as a human interest story
+      - Include specific dates, locations, and relevant people
+      - Focus on the emotional impact and community response
+      - Provide context and resolution to the event
+      
+      If it's a Bedtime Story:
+      - Create a gentle, warmhearted narrative
+      - Include friendly characters (animals, children, or magical beings)
+      - Use soothing descriptions and peaceful settings
+      - End with characters feeling safe and content
+      
+      Keep the narrative flowing naturally without sections or breaks. Focus on vivid details and emotional connections.`;
 
       const response = await generateGeminiResponse(prompt);
-      
+
       if (response.success) {
         setStory(response.text);
         showToast.success(
-          "Story Generated", 
+          "Story Generated",
           `Story created successfully! You have ${remainingLimit} generations remaining this minute.`
         );
       } else {
@@ -425,7 +450,7 @@ export default function StoryToVideo() {
       }
     } catch (error) {
       showToast.error(
-        "Generation Failed", 
+        "Generation Failed",
         error instanceof Error ? error.message : "Failed to generate story"
       );
     } finally {
@@ -441,7 +466,7 @@ export default function StoryToVideo() {
       className="w-full mx-auto space-y-8 p-4 sm:p-8 bg-white dark:bg-gray-900 rounded-lg shadow-lg relative" id="story"
     >
       {isLoading && (
-        <LoadingOverlay 
+        <LoadingOverlay
           isLoading={isLoading}
           message={processingStage || "Generating video..."}
         />
@@ -467,13 +492,13 @@ export default function StoryToVideo() {
         animate="animate"
         className="flex flex-col space-y-4"
       >
-        <motion.h1 
+        <motion.h1
           variants={itemFadeIn}
           className="text-4xl font-bold text-gray-900 dark:text-white"
         >
           Create Your Video
         </motion.h1>
-        <motion.div 
+        <motion.div
           variants={itemFadeIn}
           className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg"
         >
@@ -494,35 +519,39 @@ export default function StoryToVideo() {
         className="space-y-6"
         onSubmit={handleSubmit}
       >
+        {/* Story Type Selection - Updated styling */}
         <motion.div
-          variants={containerStagger}
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"
+          variants={itemFadeIn}
+          className="w-full"
         >
-          {storyTypes.map((type) => (
-            <motion.div
-              key={type}
-              variants={itemFadeIn}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-3">
+            Select Story Type
+          </label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {storyTypes.map((type) => (
               <TooltipProvider key={type}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant={selectedStoryType === type ? "default" : "outline"}
-                      onClick={() => setSelectedStoryType(type)}
-                      className="rounded-full"
-                    >
-                      {type}
-                    </Button>
-                  </TooltipTrigger>
+              <Button
+                key={type}
+                type="button"
+                variant={selectedStoryType === type ? "default" : "outline"}
+                onClick={() => handleStoryTypeChange(type)}
+                className={`w-full justify-center text-sm ${selectedStoryType === type
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent hover:text-accent-foreground'
+                  }`}
+              >
+                {type}
+              </Button>
+              </TooltipTrigger>
                   <TooltipContent>
                     {getStoryTypeDescription(type)}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-            </motion.div>
-          ))}
+            ))}
+          </div>
         </motion.div>
 
         <motion.div
@@ -738,9 +767,9 @@ export default function StoryToVideo() {
             exit={{ opacity: 0, y: -20 }}
             className="space-y-6"
           >
-            <ProgressBar 
-              value={progress} 
-              showValue 
+            <ProgressBar
+              value={progress}
+              showValue
               color="bg-blue-500"
             />
             <motion.div
@@ -753,9 +782,8 @@ export default function StoryToVideo() {
                 <motion.div
                   key={index}
                   variants={itemFadeIn}
-                  className={`p-4 rounded-lg ${
-                    currentStep === index ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                  }`}
+                  className={`p-4 rounded-lg ${currentStep === index ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                    }`}
                 >
                   {/* ...existing step content... */}
                 </motion.div>

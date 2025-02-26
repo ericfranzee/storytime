@@ -155,3 +155,11 @@
     margin-top: 8px;
   }
 }
+
+@media (forced-colors: active) {
+  /* Add forced-colors mode styles here */
+  .forced-colors-mode {
+    /* Your styles for high contrast mode */
+    forced-color-adjust: none;
+  }
+}

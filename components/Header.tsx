@@ -23,6 +23,7 @@ import { fadeIn, slideIn, stagger } from '@/lib/animation-variants';
 import { useTheme } from 'next-themes';
 import OptimizedImage from '@/components/ui/OptimizedImage';
 import { imageConfig } from '@/config/images';
+import Avatar from '@/components/ui/avatar';
 
 interface HeaderProps { }
 
@@ -136,7 +137,7 @@ const Header: React.FC<HeaderProps> = () => {
       variants={fadeIn}
       initial="initial"
       animate="animate"
-      className="sticky top-0 sticky-header bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-md z-99"
+      className="sticky top-0 sticky-header bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-md z-50"
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16" style={{
@@ -209,34 +210,42 @@ const Header: React.FC<HeaderProps> = () => {
             {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  {user ? (
-                    <img
-                      src={user.photoURL || `/avatars/${user.email?.charAt(0).toLowerCase()}.png`}
-                      alt="Profile"
-                      className="h-8 w-8 rounded-full"
-                    />
-                  ) : (
-                    <i className="fas fa-user" />
-                  )}
+                <Button 
+                  variant="ghost" 
+                  className="relative p-0 h-auto w-auto hover:bg-transparent"
+                >
+                  <div className="w-8 h-8 overflow-hidden rounded-full">
+                    {user ? (
+                      <Avatar 
+                        user={user} 
+                        size="sm"
+                        className="border-2 border-transparent hover:border-primary transition-colors"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-muted">
+                        <i className="fas fa-user text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-56 mt-2" // Added margin top for better spacing
-                style={{
-                  zIndex: 'var(--z-dropdown)',
-                  position: 'relative'
-                }}
+                className="w-56 p-2 mt-1"
               >
                 {user && (
                   <>
-                    <DropdownMenuLabel className="font-normal">
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium">{user.displayName || user.email}</p>
-                        <p className="text-xs text-gray-500">{user.email}</p>
+                    <div className="flex items-center gap-2 p-2">
+                      <Avatar user={user} size="md" />
+                      <div className="flex flex-col">
+                        <p className="text-sm font-medium leading-none">
+                          {user.displayName || user.email?.split('@')[0]}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {user.email}
+                        </p>
                       </div>
-                    </DropdownMenuLabel>
+                    </div>
                     <DropdownMenuSeparator />
                   </>
                 )}

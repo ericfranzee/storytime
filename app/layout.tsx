@@ -11,7 +11,6 @@ import Footer from "@/components/Footer"
 import type React from "react" // Added import for React
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import BackToTopButton from "@/components/BackToTopButton";
-import { metadata } from "./metadata";
 import { Toaster } from "@/components/ui/toaster"
 import { ToastProvider } from "@/components/ui/toast"
 import { CurrencyProvider } from "@/lib/currency-context"
@@ -26,6 +25,22 @@ import { usePathname } from 'next/navigation' // Add this import
 const inter = Inter({ subsets: ["latin"] })
 
 import PricingPage from "./pricing/page"
+
+export const metadata = {
+  title: 'Storytime - Turn Stories into Videos',
+  description: 'Transform your stories into engaging videos with AI-powered storytelling',
+  openGraph: {
+    title: 'Storytime - Turn Stories into Videos',
+    description: 'Transform your stories into engaging videos with AI-powered storytelling',
+    images: ['/og-image.jpg'],
+  },
+  twitter: {
+    card: 'summary_large_image',
+  },
+  verification: {
+    google: 'your-google-verification-code',
+  }
+};
 
 export default function RootLayout({
   children,

@@ -72,7 +72,7 @@ const generateVideo = async () => {
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">Developer API</h2>
+            <h2 className="text-4xl font-bold mb-4">Developer API</h2><h6 className="text-xl font-bold mb-4">(Comming Soon!)</h6>
             <p className="text-lg text-gray-600 dark:text-gray-300">
               Integrate our powerful video generation capabilities directly into your applications
             </p>

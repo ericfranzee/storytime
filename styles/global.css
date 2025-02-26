@@ -16,7 +16,7 @@
 :root {
   --z-header: 99;
   --z-dropdown: 100;
-  --z-notifications: 150;
+  --z-notifications: 20000;
   --z-modal-backdrop: 200;
   --z-modal: 250;
 }

@@ -1,6 +1,6 @@
 "use client"
 import React, { useState } from 'react';
-import { signUpWithEmailPassword, signInWithGoogle } from "@/app/firebase";
+import { signUpWithEmailPassword, signInWithGoogle, confirmVerification, sendVerificationCode } from "@/app/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from 'framer-motion';
@@ -23,6 +23,10 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, setIsLoginMo
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [hasPendingVerification, setHasPendingVerification] = useState(false);
   const { login } = useAuth();
 
   const validatePassword = (password: string) => {
@@ -48,14 +52,62 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, setIsLoginMo
 
     setIsLoading(true);
     try {
-      await signUpWithEmailPassword(email, password);
+      const result = await signUpWithEmailPassword(email, password);
+      
+      if (result.status === 'pending_verification') {
+        setHasPendingVerification(true);
+        setVerificationSent(true);
+        setPendingEmail(email);
+        showToast.info(
+          "Pending Verification",
+          "You have a pending verification. Would you like to resend the code?"
+        );
+      } else if (result.status === 'verification_sent') {
+        setVerificationSent(true);
+        setPendingEmail(email);
+        showToast.success(
+          "Verification Required",
+          "Please check your email for verification code"
+        );
+      }
+    } catch (error) {
+      showToast.error(
+        "Signup Failed", 
+        error instanceof Error ? error.message : "Please try again"
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerificationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      const user = await confirmVerification(pendingEmail, verificationCode);
       login();
-      showToast.success("Welcome to Story Time!", "Your account has been created successfully");
+      showToast.success("Welcome!", "Your account has been verified");
       onClose();
       onSignupSuccess();
     } catch (error) {
       showToast.error(
-        "Signup Failed", 
+        "Verification Failed",
+        error instanceof Error ? error.message : "Please try again"
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setIsLoading(true);
+    try {
+      await sendVerificationCode(pendingEmail);
+      showToast.success("Verification Code Resent", "Please check your email");
+    } catch (error) {
+      showToast.error(
+        "Resend Failed",
         error instanceof Error ? error.message : "Please try again"
       );
     } finally {
@@ -100,58 +152,89 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, setIsLoginMo
             <h2 className="text-2xl font-bold">Create Account</h2>
           </div>
 
-          <form onSubmit={handleEmailPasswordSignUp} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                required
+          {verificationSent ? (
+            <div className="space-y-4">
+              <form onSubmit={handleVerificationSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Enter Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                    className="w-full p-2 border rounded"
+                    required
+                    maxLength={6}
+                    placeholder="Enter 6-digit code"
+                  />
+                </div>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Verifying..." : "Verify Account"}
+                </Button>
+              </form>
+              <button
+                onClick={handleResendVerification}
+                className="text-sm text-blue-600 hover:text-blue-800"
                 disabled={isLoading}
-              />
+              >
+                Resend verification code
+              </button>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  validatePassword(e.target.value);
-                }}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                required
-                disabled={isLoading}
-              />
-              <Progress value={passwordStrength} className="h-1 mt-2" />
-              <div className="text-xs text-gray-500 mt-1">
-                Password must contain at least 8 characters, including uppercase, numbers & symbols
+          ) : (
+            <form onSubmit={handleEmailPasswordSignUp} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  required
+                  disabled={isLoading}
+                />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                required
+              <div>
+                <label className="block text-sm font-medium mb-1">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    validatePassword(e.target.value);
+                  }}
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  required
+                  disabled={isLoading}
+                />
+                <Progress value={passwordStrength} className="h-1 mt-2" />
+                <div className="text-xs text-gray-500 mt-1">
+                  Password must contain at least 8 characters, including uppercase, numbers & symbols
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Confirm Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
                 disabled={isLoading}
-              />
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? "Creating Account..." : "Sign Up"}
-            </Button>
-          </form>
+              >
+                {isLoading ? "Creating Account..." : "Sign Up"}
+              </Button>
+            </form>
+          )}
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">

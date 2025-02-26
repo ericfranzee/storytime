@@ -1,50 +1,66 @@
-"use client"
+import React from 'react';
+import { getInitials, getRandomColor } from '@/lib/utils/string-utils';
+import Image from 'next/image';
 
-import * as React from "react"
-import * as AvatarPrimitive from "@radix-ui/react-avatar"
+interface AvatarProps {
+  user: {
+    photoURL?: string | null;
+    email?: string | null;
+  };
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}
 
-import { cn } from "@/lib/utils"
+const Avatar: React.FC<AvatarProps> = ({ user, size = 'md', className = '' }) => {
+  const [imageError, setImageError] = React.useState(false);
 
-const Avatar = React.forwardRef<
-  React.ElementRef<typeof AvatarPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Root
-    ref={ref}
-    className={cn(
-      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
-      className
-    )}
-    {...props}
-  />
-))
-Avatar.displayName = AvatarPrimitive.Root.displayName
+  const sizeMap = {
+    sm: 32,
+    md: 40,
+    lg: 48
+  };
 
-const AvatarImage = React.forwardRef<
-  React.ElementRef<typeof AvatarPrimitive.Image>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Image
-    ref={ref}
-    className={cn("aspect-square h-full w-full", className)}
-    {...props}
-  />
-))
-AvatarImage.displayName = AvatarPrimitive.Image.displayName
+  const initials = getInitials(user.email);
+  const bgColor = getRandomColor(user.email || '?');
 
-const AvatarFallback = React.forwardRef<
-  React.ElementRef<typeof AvatarPrimitive.Fallback>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback>
->(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Fallback
-    ref={ref}
-    className={cn(
-      "flex h-full w-full items-center justify-center rounded-full bg-muted",
-      className
-    )}
-    {...props}
-  />
-))
-AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName
+  if (!user.photoURL || imageError) {
+    return (
+      <div 
+        className={`flex items-center justify-center overflow-hidden ${className}`}
+        style={{ 
+          width: sizeMap[size],
+          height: sizeMap[size],
+          borderRadius: '50%',
+          backgroundColor: bgColor
+        }}
+      >
+        <span className="text-white font-medium text-sm">
+          {initials}
+        </span>
+      </div>
+    );
+  }
 
-export { Avatar, AvatarImage, AvatarFallback }
+  return (
+    <div 
+      className={`relative overflow-hidden ${className}`}
+      style={{ 
+        width: sizeMap[size],
+        height: sizeMap[size],
+        borderRadius: '50%'
+      }}
+    >
+      <Image
+        src={user.photoURL}
+        alt="User Avatar"
+        width={sizeMap[size]}
+        height={sizeMap[size]}
+        onError={() => setImageError(true)}
+        className="object-cover"
+        priority
+      />
+    </div>
+  );
+};
+
+export default Avatar;
