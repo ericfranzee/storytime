@@ -12,7 +12,6 @@ import type React from "react" // Added import for React
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import BackToTopButton from "@/components/BackToTopButton";
 import { Toaster } from "@/components/ui/toaster"
-import { ToastProvider } from "@/components/ui/toast"
 import { CurrencyProvider } from "@/lib/currency-context"
 import TestimonialsSection from "@/components/TestimonialsSection"
 import DemoSection from "@/components/DemoSection"
@@ -21,26 +20,12 @@ import SuccessStoriesSection from "@/components/SuccessStoriesSection"
 import HowItWorksSection from "@/components/HowItWorksSection"
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname } from 'next/navigation' // Add this import
+import { metadata } from './metadata'
+import PricingPage from "./pricing/page"
 
 const inter = Inter({ subsets: ["latin"] })
 
-import PricingPage from "./pricing/page"
-
-export const metadata = {
-  title: 'Storytime - Turn Stories into Videos',
-  description: 'Transform your stories into engaging videos with AI-powered storytelling',
-  openGraph: {
-    title: 'Storytime - Turn Stories into Videos',
-    description: 'Transform your stories into engaging videos with AI-powered storytelling',
-    images: ['/og-image.jpg'],
-  },
-  twitter: {
-    card: 'summary_large_image',
-  },
-  verification: {
-    google: 'your-google-verification-code',
-  }
-};
+export { metadata }
 
 export default function RootLayout({
   children,
@@ -50,7 +35,7 @@ export default function RootLayout({
   const pathname = usePathname(); // Use this instead of window.location.pathname
 
   return (
-    <html lang="en" {...metadata}>
+    <html lang="en">
       <head>
         <link rel="icon" href="/favicon.png" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
