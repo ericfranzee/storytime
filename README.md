@@ -157,7 +157,7 @@ Run the test suite:
 ```bash
 npm test
 ```
-Alternatively use pnpm
+Alternatively, use pnpm
 
 ### 📝 API Documentation
 
@@ -198,9 +198,9 @@ Documentation: docs.storytime.africa (coming soon)
 - Firebase team for authentication and database
 - Paystack team for payment processing
 - All contributors and users of the platform
-- Mostly importanly mistral AI, Gemini, and Claude
-    - 90% code of the site was write by AI lolz
-        - Me Ericfranzee the prompt disher "smiles"
+- Mostly importantly mistral AI, Gemini, and Claude
+    - most of the code was written by AI 
+        - Me Ericfranzee the prompt enginer "smiles"
 
 ### 🔄 Version History
 1.0.0: Initial release
