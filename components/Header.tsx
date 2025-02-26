@@ -15,13 +15,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import PaymentSection from './PaymentSection';
 import CurrencySwitch from "./CurrencySwitch";
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeIn, slideIn, stagger } from '@/lib/animation-variants';
 import { useTheme } from 'next-themes';
 import OptimizedImage from '@/components/ui/OptimizedImage';
-import { imageConfig } from '@/config/images';
 import Avatar from '@/components/ui/avatar';
 
 interface HeaderProps { }
@@ -297,6 +295,11 @@ const Header: React.FC<HeaderProps> = () => {
                   {item.label}
                 </a>
               ))}
+              <hr />
+              <div className="flex flex-col space-y-2">
+              <CurrencySwitch />
+              </div>
+              <hr />
             </nav>
           </motion.div>
         )}

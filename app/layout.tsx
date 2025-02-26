@@ -5,6 +5,7 @@ import type { Metadata } from 'next'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import ClientWrapper from './client-wrapper'
 import RootLayoutWrapper from './root-layout-wrapper'
+import { CurrencyProvider } from "@/lib/currency-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -37,11 +38,13 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} relative antialiased`}>
         <ErrorBoundary>
-          <ClientWrapper>
-            <RootLayoutWrapper>
-              {children}
-            </RootLayoutWrapper>
-          </ClientWrapper>
+          <CurrencyProvider>
+            <ClientWrapper>
+              <RootLayoutWrapper>
+                {children}
+              </RootLayoutWrapper>
+            </ClientWrapper>
+          </CurrencyProvider>
         </ErrorBoundary>
       </body>
     </html>

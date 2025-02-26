@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { useAuth } from "@/hooks/useAuth"
 import { useToast } from "@/hooks/use-toast"; // Update this import
-import { Toaster } from "@/components/ui/toaster"; // Update this import
 import LoginModal from "@/components/LoginModal"
 import axios, { AxiosResponse } from "axios"
 import { Input } from "@/components/ui/input"
@@ -33,6 +32,8 @@ import LoadingOverlay from '@/components/ui/loading/LoadingOverlay';
 import { generateGeminiResponse } from '@/lib/gemini-utils';
 import { Loader2 } from "lucide-react"; // For loading spinner
 import { checkRateLimit, getRemainingLimit, getResetTime } from '@/lib/rate-limiter';
+import CountdownTimer from '@/components/ui/CountdownTimer';
+import { Checkbox } from "@/components/ui/checkbox";
 
 const MAX_CHARACTERS = 1500
 const storyTypes = ["African Folktales", "History", "News", "Bedtime Stories"]
@@ -90,12 +91,13 @@ export default function StoryToVideo() {
   const [webhookUrl, setWebhookUrl] = useState('');
   const [story, setStory] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [isWaiting, setIsWaiting] = useState(false)
-  const [waitTime, setWaitTime] = useState(600) // 10 minutes in seconds
-  const [countdown, setCountdown] = useState(600) // 10 minutes in seconds
-  const [isLoadingVideo, setIsLoadingVideo] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const [isWaiting, setIsWaiting] = useState(false);
+  const [waitTime, setWaitTime] = useState(600); // 10 minutes in seconds
+  const [countdown, setCountdown] = useState(600); // 10 minutes in seconds
+  const [isLoadingVideo, setIsLoadingVideo] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [videoUrl, setVideoUrl] = useState("");
+  const [isVideoReady, setIsVideoReady] = useState(false);
   const [music, setMusic] = useState("1");
   const [musicUrl, setMusicUrl] = useState("");
   const [voice, setVoice] = useState("en-US-Andrew");
@@ -103,6 +105,7 @@ export default function StoryToVideo() {
   const [showMusicUrlInput, setShowMusicUrlInput] = useState(false);
   const [apiMusicUrls, setApiMusicUrls] = useState({}); // State to store music URLs from API
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+  const [emailNotify, setEmailNotify] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -201,6 +204,32 @@ export default function StoryToVideo() {
     return Object.keys(errors).length === 0;
   };
 
+  const sendEmailNotification = async (videoUrl: string) => {
+    if (!user?.email || !emailNotify) return;
+
+    try {
+      const response = await fetch('/api/notify/video-ready', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, videoUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send email notification');
+      }
+
+      showToast.success(
+        "Notification Sent",
+        "You'll receive an email when your video is ready"
+      );
+    } catch (error) {
+      showToast.error(
+        "Notification Failed",
+        "Couldn't send email notification"
+      );
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -268,6 +297,11 @@ export default function StoryToVideo() {
           await incrementVideoUsage(user.uid);
           setVideoUrl(response.data.videoUrl);
           showToast.success("Video Generation Started", "Your video is being processed.");
+
+          // Send email notification when countdown starts
+          if (emailNotify) {
+            await sendEmailNotification(response.data.videoUrl);
+          }
 
           // Start the timer
           setIsWaiting(true);
@@ -364,11 +398,6 @@ export default function StoryToVideo() {
   }, [music]);
 
   const [selectedStoryType, setSelectedStoryType] = useState(defaultStoryType);
-
-  const handleStoryTypeChange = (type: string) => {
-    setSelectedStoryType(type);
-    // No automatic submission
-  };
 
   useEffect(() => {
     return () => {
@@ -519,39 +548,35 @@ export default function StoryToVideo() {
         className="space-y-6"
         onSubmit={handleSubmit}
       >
-        {/* Story Type Selection - Updated styling */}
         <motion.div
-          variants={itemFadeIn}
-          className="w-full"
+          variants={containerStagger}
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"
         >
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-3">
-            Select Story Type
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {storyTypes.map((type) => (
+          {storyTypes.map((type) => (
+            <motion.div
+              key={type}
+              variants={itemFadeIn}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
               <TooltipProvider key={type}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-              <Button
-                key={type}
-                type="button"
-                variant={selectedStoryType === type ? "default" : "outline"}
-                onClick={() => handleStoryTypeChange(type)}
-                className={`w-full justify-center text-sm ${selectedStoryType === type
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-accent hover:text-accent-foreground'
-                  }`}
-              >
-                {type}
-              </Button>
-              </TooltipTrigger>
+                    <Button
+                      variant={selectedStoryType === type ? "default" : "outline"}
+                      onClick={() => setSelectedStoryType(type)}
+                      className="rounded-full"
+                    >
+                      {type}
+                    </Button>
+                  </TooltipTrigger>
                   <TooltipContent>
                     {getStoryTypeDescription(type)}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-            ))}
-          </div>
+            </motion.div>
+          ))}
         </motion.div>
 
         <motion.div
@@ -746,6 +771,22 @@ export default function StoryToVideo() {
           </motion.div>
         </motion.div>
 
+        <motion.div variants={itemFadeIn} className="mt-4">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="emailNotify"
+              checked={emailNotify}
+              onCheckedChange={(checked) => setEmailNotify(checked as boolean)}
+            />
+            <label 
+              htmlFor="emailNotify"
+              className="text-sm text-gray-600 dark:text-gray-400"
+            >
+              Notify me by email when video is ready
+            </label>
+          </div>
+        </motion.div>
+
         <motion.div variants={itemFadeIn}>
           <AnimatedButton
             type="submit"
@@ -760,41 +801,72 @@ export default function StoryToVideo() {
       </motion.form>
 
       <AnimatePresence>
-        {isLoading && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
-          >
-            <ProgressBar
-              value={progress}
-              showValue
-              color="bg-blue-500"
-            />
-            <motion.div
-              variants={containerStagger}
-              initial="initial"
-              animate="animate"
-              className="grid grid-cols-1 md:grid-cols-2 gap-4"
-            >
-              {processingSteps.map((step, index) => (
-                <motion.div
-                  key={index}
-                  variants={itemFadeIn}
-                  className={`p-4 rounded-lg ${currentStep === index ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                    }`}
-                >
-                  {/* ...existing step content... */}
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.div>
-        )}
+      {isLoading && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="space-y-6"
+        >
+          <ProgressBar
+            value={progress}
+            showValue
+            color="bg-blue-500"
+          />
+        </motion.div>
+      )}
       </AnimatePresence>
 
       <AnimatePresence>
         {videoUrl && (
+          <motion.div
+              variants={containerStagger}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="space-y-4"
+          >
+            <div className="my-8">
+              <CountdownTimer
+                duration={60} // 10 minutes in seconds
+                onComplete={() => setIsVideoReady(true)}
+              />
+              <br />
+              {isWaiting && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex space-x-2">
+                  <motion.div
+                    initial={{ width: "10%", backgroundColor: "#60a5fa" }}
+                    animate={{
+                      width: ["20%", "40%", "60%", "80%", "100%", "80%", "60%", "40%", "20%"],
+                      backgroundColor: ["#3b82f6", "#60a5fa", "#3b82f6"]
+                    }}
+                    transition={{
+                      duration: 5,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                     className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20"
+                  />
+                  <motion.div
+                    initial={{ width: "10%", backgroundColor: "#60a5fa" }}
+                    animate={{
+                      width: ["20%", "40%", "60%", "80%", "100%", "80%", "60%", "40%", "20%"],
+                      backgroundColor: ["#3b82f6", "#60a5fa", "#3b82f6"]
+                    }}
+                    transition={{
+                      duration: 5,
+                      repeat: Infinity,
+                      delay: 2.5,
+                      ease: "easeInOut"
+                    }}
+                    className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20"
+                  />
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+        {isVideoReady && (
           <motion.div
             variants={scale}
             initial="initial"
