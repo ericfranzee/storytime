@@ -1,0 +1,48 @@
+import { del } from '@vercel/blob';
+import { NextResponse } from 'next/server';
+
+// Ensure the user is authenticated and authorized if necessary
+// Example: import { auth } from '@clerk/nextjs/server';
+// Example: import { isAdmin } from '@/lib/admin-utils';
+
+export async function POST(request: Request): Promise<NextResponse> {
+  // --- Authentication/Authorization Check (Example) ---
+  // const { userId } = auth();
+  // if (!userId || !isAdmin(userId)) {
+  //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // }
+  // --- End Auth Check ---
+
+  try {
+    const { url } = await request.json();
+
+    if (!url || typeof url !== 'string') {
+      return NextResponse.json({ error: 'Blob URL is required' }, { status: 400 });
+    }
+
+    // Basic validation to ensure it looks like a Vercel Blob URL
+    // You might want more robust validation depending on your hostname structure
+    if (!url.includes('.blob.vercel-storage.com')) {
+       return NextResponse.json({ error: 'Invalid Blob URL format' }, { status: 400 });
+    }
+
+    try {
+      await del(url);
+      return NextResponse.json({ success: true, message: 'Blob deleted successfully' });
+    } catch (delError: unknown) {
+      console.error('Error deleting blob:', delError);
+      let errorMessage = 'Failed to delete blob.';
+      if (delError instanceof Error && delError.message.includes('not found')) {
+          errorMessage = 'Blob not found.'; // More specific error
+      }
+      return NextResponse.json(
+        { error: errorMessage },
+        { status: 500 }
+      );
+    }
+
+  } catch (error: any) {
+    console.error('Error processing request:', error);
+    return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
+  }
+}

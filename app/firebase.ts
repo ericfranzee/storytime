@@ -1,30 +1,48 @@
 import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  where, 
-  doc, 
-  getDoc, 
-  updateDoc, 
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  doc,
+  getDoc,
+  updateDoc,
   setDoc,
   writeBatch,
-  increment 
+  increment,
+  orderBy,
+  limit,
 } from 'firebase/firestore';
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  createUserWithEmailAndPassword, 
-  sendEmailVerification,
-  sendPasswordResetEmail 
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  // sendEmailVerification, // Removed unused import
+  sendPasswordResetEmail
 } from 'firebase/auth';
+import { getStorage /*, ref, uploadBytes, getDownloadURL */ } from "firebase/storage"; // Removed unused storage imports
 import { sendVerificationEmail } from '@/lib/email-service';
+import { Timestamp } from 'firebase/firestore';
 
 // Types
+interface VideoHistoryItem {
+  id: string;
+  userId: string;
+  videoUrl: string;
+  voiceUrl: string;
+  imageUrls: string[];
+  story: string;
+  music: string;
+  voice: string;
+  videoScale: string;
+  createdAt: Timestamp; // Assuming createdAt is a Firestore Timestamp
+}
+
+/*
 interface SubscriptionData {
   userId: string;
   email: string;
@@ -39,6 +57,7 @@ interface SubscriptionData {
   expiryDate: number;
   expiryDateISO: string;
 }
+*/
 
 // Add new verification status type
 type VerificationStatus = 'pending' | 'verified' | 'expired';
@@ -65,6 +84,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const storage = getStorage(app); // Initialize storage
 
 // Helper Functions
 export const calculateExpiryDate = (subscriptionDate: Date): Date => {
@@ -73,11 +93,18 @@ export const calculateExpiryDate = (subscriptionDate: Date): Date => {
   return expiryDate;
 };
 
+// Add function to calculate annual expiry
+export const calculateAnnualExpiryDate = (subscriptionDate: Date): Date => {
+  const expiryDate = new Date(subscriptionDate);
+  expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+  return expiryDate;
+};
+
 export const getVideoLimit = (plan: string): number => {
   const limits = {
     pro: 45,
     elite: Infinity,
-    free: 3
+    free: 7 // Updated free limit
   };
   return limits[plan as keyof typeof limits] || limits.free;
 };
@@ -96,8 +123,8 @@ export const createDefaultFreePlan = async (userId: string, email: string) => {
     paymentStatus: 'inactive',
     videoCount: 0,
     usage: 0,
-    remainingUsage: 3, // Free plan limit
-    videoLimit: 3,
+    remainingUsage: 7, // Updated free plan limit
+    videoLimit: 7, // Updated free plan limit
     resetDate: new Date(subscriptionDate.getFullYear(), subscriptionDate.getMonth() + 1, 0).getTime(),
     subscriptionStartDate: subscriptionDate.toISOString(),
     expiryDate: calculateExpiryDate(subscriptionDate).getTime(),
@@ -107,14 +134,15 @@ export const createDefaultFreePlan = async (userId: string, email: string) => {
 
   // Create or update user document
   const userRef = doc(db, 'users', userId);
-  const userData = {
-    email,
-    subscriptionId: subscriptionRef.id,
-    subscriptionPlan: 'free',
-    createdAt: subscriptionDate.toISOString(),
-    updatedAt: subscriptionDate.toISOString()
-  };
-  batch.set(userRef, userData, { merge: true });
+    const userData = {
+      email,
+      subscriptionId: subscriptionRef.id,
+      subscriptionPlan: 'free',
+      userType: 'user', // Add default userType
+      createdAt: subscriptionDate.toISOString(),
+      updatedAt: subscriptionDate.toISOString()
+    };
+    batch.set(userRef, userData, { merge: true });
 
   // Commit both operations
   try {
@@ -126,7 +154,8 @@ export const createDefaultFreePlan = async (userId: string, email: string) => {
   }
 };
 
-// Subscription Management
+// Subscription Management (Commented out as unused)
+/*
 const createSubscription = async (userId: string, email: string, plan: 'free' | 'pro' | 'elite'): Promise<string> => {
   const subscriptionDate = new Date();
   const subscriptionData: SubscriptionData = {
@@ -168,12 +197,12 @@ const createSubscription = async (userId: string, email: string, plan: 'free' | 
   }
 };
 
-// Authentication Functions
-const handleUserSignup = async (user: any, email: string) => {
+// Authentication Functions (Commented out as unused)
+const handleUserSignup = async (user: unknown, email: string) => { // Changed type to unknown
   try {
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    const userDoc = await getDoc(doc(db, 'users', (user as { uid: string }).uid)); // Type assertion
     if (!userDoc.exists()) {
-      return await createDefaultFreePlan(user.uid, email);
+      return await createDefaultFreePlan((user as { uid: string }).uid, email); // Type assertion
     }
     return userDoc.data().subscriptionId;
   } catch (error) {
@@ -181,6 +210,7 @@ const handleUserSignup = async (user: any, email: string) => {
     throw error;
   }
 };
+*/
 
 // Add new function to send verification code
 export const sendVerificationCode = async (email: string) => {
@@ -369,7 +399,7 @@ export const signInWithGoogle = async () => {
 export const getUserSubscription = async (userId: string) => {
   try {
     const subscriptionsQuery = query(
-      collection(db, 'subscriptions'), 
+      collection(db, 'subscriptions'),
       where('userId', '==', userId)
     );
     const querySnapshot = await getDocs(subscriptionsQuery);
@@ -396,7 +426,8 @@ export const getUserSubscription = async (userId: string) => {
   }
 };
 
-export const incrementVideoUsage = async (userId: string) => {
+// Modify to accept an optional amount, defaulting to 1
+export const incrementVideoUsage = async (userId: string, amount: number = 1) => {
   try {
     const subscription = await getUserSubscription(userId);
     if (!subscription) {
@@ -404,21 +435,30 @@ export const incrementVideoUsage = async (userId: string) => {
     }
 
     if (subscription.usage >= subscription.videoLimit) {
+      // Check if enough usage remains *before* incrementing
       throw new Error('Video generation limit reached');
     }
+     if (subscription.usage + amount > subscription.videoLimit && subscription.plan !== 'elite') { // Elite has Infinity limit
+        throw new Error(`Insufficient credits. Required: ${amount}, Remaining: ${subscription.remainingUsage}`);
+     }
+
 
     const subscriptionsQuery = query(
-      collection(db, 'subscriptions'), 
+      collection(db, 'subscriptions'),
       where('userId', '==', userId)
     );
     const querySnapshot = await getDocs(subscriptionsQuery);
 
     if (!querySnapshot.empty) {
       const subscriptionDoc = querySnapshot.docs[0];
+      const newUsage = subscription.usage + amount;
+      // Calculate remaining usage, ensuring it doesn't go below 0 for non-elite plans
+      const newRemainingUsage = subscription.plan === 'elite' ? Infinity : Math.max(0, subscription.videoLimit - newUsage);
+
       await updateDoc(subscriptionDoc.ref, {
-        usage: subscription.usage + 1,
-        remainingUsage: subscription.videoLimit - (subscription.usage + 1),
-        videoCount: subscription.videoCount + 1
+        usage: newUsage,
+        remainingUsage: newRemainingUsage,
+        videoCount: subscription.videoCount + 1 // Still increment video count by 1 per generation
       });
     }
   } catch (error) {
@@ -470,8 +510,68 @@ const checkExistingEmail = async (email: string): Promise<boolean> => {
 };
 
 // Export necessary functions and objects
-export { 
-  auth, 
+export const addVideoHistory = async (
+  userId: string,
+  videoUrl: string,
+  voiceUrl: string,
+  imageUrls: string[],
+  story: string,
+  music: string,
+  voice: string,
+  videoScale: string
+) => {
+  try {
+    const videoHistoryRef = collection(db, "videoHistory");
+
+    await addDoc(videoHistoryRef, {
+      userId,
+      videoUrl,
+      voiceUrl,
+      imageUrls,
+      story,
+      music,
+      voice,
+      videoScale,
+      createdAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error("Error adding video history:", error);
+    throw new Error("Failed to add video history");
+  }
+};
+
+export const getUserVideoHistory = async (userId: string) => {
+  try {
+    const videoHistoryRef = collection(db, "videoHistory");
+    const q = query(
+      videoHistoryRef,
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc"),
+      limit(5)
+    );
+
+    const querySnapshot = await getDocs(q);
+    const videoHistory: VideoHistoryItem[] = []; // Explicitly type the array
+
+    querySnapshot.forEach((doc) => {
+      // Cast doc.data() to the known structure, assuming it matches VideoHistoryItem (excluding id)
+      const data = doc.data() as Omit<VideoHistoryItem, 'id'>;
+      videoHistory.push({
+        id: doc.id,
+        ...data, // Spread the typed data
+      });
+    });
+
+    return videoHistory;
+  } catch (error) {
+    console.error("Error getting video history:", error);
+    throw new Error("Failed to get video history");
+  }
+};
+
+export {
+  auth,
+  storage, // Export storage
   signInWithEmailPassword,
   sendPasswordResetEmail
 };

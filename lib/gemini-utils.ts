@@ -1,4 +1,4 @@
-import { getGeminiModel, getGeminiVisionModel, geminiConfig } from './gemini-provider';
+import { getGeminiModel, getGeminiVisionModel } from './gemini-provider';
 import { GeminiResponse } from '@/types/gemini';
 
 export async function generateGeminiResponse(prompt: string): Promise<GeminiResponse> {
@@ -26,8 +26,8 @@ export async function generateGeminiVisionResponse(
 ): Promise<GeminiResponse> {
   try {
     const model = getGeminiVisionModel();
-    const imageResponse = await fetch(imageUrl);
-    const imageBlob = await imageResponse.blob();
+    // const imageResponse = await fetch(imageUrl);
+    // const imageBlob = await imageResponse.blob();
     
     const result = await model.generateContent([prompt]);
     const response = await result.response;

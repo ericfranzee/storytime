@@ -13,9 +13,9 @@ const CurrencySwitch = () => {
   const { currency, setCurrency } = useCurrency();
 
   return (
-    <div className="flex items-center space-x-2 mr-5">
+    <div className="flex items-center space-x-2 relative">
       <Select value={currency} onValueChange={setCurrency}>
-      <SelectTrigger className="bg-transparent border focus:outline-none w-[150px] md:mr-2">
+      <SelectTrigger className="appearance-none bg-transparent text-gray-500 px-2 py-1 pr-6 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
           <SelectValue placeholder="Currency" />
         </SelectTrigger>
         <SelectContent>

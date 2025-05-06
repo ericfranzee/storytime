@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import axios from 'axios';
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
 export async function POST(request: Request) {
   const { email, amount, currency, metadata } = await request.json();
-  const userId = metadata.userId;
+  // const { userId } = metadata;
 
-  if (!email || !amount || !currency) {
-    return NextResponse.json({ message: 'Email, amount, and currency are required' }, { status: 400 });
+  if (!email || !amount || !currency || !metadata) {
+    return NextResponse.json({ message: 'Email, amount, currency and metadata are required' }, { status: 400 });
   }
 
   try {

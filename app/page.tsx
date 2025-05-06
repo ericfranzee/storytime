@@ -10,6 +10,7 @@ import ApiSection from "@/components/ApiSection"
 import PricingPage from "./pricing/page"
 import ClientWrapper from './client-wrapper';
 import PageTransition from '@/components/animations/PageTransition';
+import BlogSection from "@/components/BlogSection"
 
 export default function Home() {
   return (
@@ -25,6 +26,7 @@ export default function Home() {
           <TestimonialsSection />
           <ApiSection />
           <PricingPage />
+          <BlogSection />
         </main>
       </PageTransition>
     </ClientWrapper>

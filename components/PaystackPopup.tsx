@@ -10,6 +10,31 @@ declare global {
   }
 }
 
+interface PaystackResponse {
+  message: string;
+  redirecturl?: string;
+  reference?: string;
+  status: string;
+  trans: string;
+  transaction?: string;
+  trxref?: string;
+}
+
+interface PaystackCallbackData {
+  reference: string;
+  response?: PaystackResponse;
+}
+
+interface PaystackConfig {
+  key: string;
+  email: string;
+  amount: number;
+  currency: string;
+  ref: string;
+  callback: (response: PaystackResponse) => void;
+  onClose: () => void;
+}
+
 interface PaystackPopupProps {
   amount: number;
   metadata: Record<string, any>;
@@ -56,7 +81,7 @@ const PaystackPopup: React.FC<PaystackPopupProps> = ({
             onClose: () => {
               showToast.info("Payment Cancelled", "Payment window was closed.");
             },
-            callback: async (response: any) => {
+            callback: async (response: PaystackResponse) => {
               console.log('Paystack response', response);
               try {
                 const updateSubscriptionResponse = await axios.post('/api/paystack', {

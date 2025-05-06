@@ -21,23 +21,36 @@ import { fadeIn, slideIn, stagger } from '@/lib/animation-variants';
 import { useTheme } from 'next-themes';
 import OptimizedImage from '@/components/ui/OptimizedImage';
 import Avatar from '@/components/ui/avatar';
+import { settingsService } from '@/lib/firebase/settings-service';
+import { useModal } from '@/lib/modal-context'; // Import useModal
 
-interface HeaderProps { }
+interface HeaderProps {}
 
 const Header: React.FC<HeaderProps> = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, systemTheme } = useTheme();
+  const { isLoginModalOpen, setIsLoginModalOpen, isSignupModalOpen, setIsSignupModalOpen } = useModal(); // Use modal context
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false); // Add settings modal state
-  const [hasMounted, setHasMounted] = useState(false); // Track if component has mounted
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [lightLogoUrl, setLightLogoUrl] = useState<string | undefined>();
+  const [darkLogoUrl, setDarkLogoUrl] = useState<string | undefined>();
   const dropdownButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    setHasMounted(true); // Set hasMounted to true after component mounts
+    setHasMounted(true);
     setMounted(true);
+    const loadSettings = async () => {
+      try {
+        const siteSettings = await settingsService.getSiteSettings();
+        setLightLogoUrl(siteSettings?.lightLogo);
+        setDarkLogoUrl(siteSettings?.darkLogo);
+      } catch (error) {
+        console.error("Error loading settings for header logos:", error);
+      }
+    };
+    loadSettings();
   }, []);
 
   const toggleMenu = () => {
@@ -46,8 +59,8 @@ const Header: React.FC<HeaderProps> = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
-      console.log('Logout successful!');
+      await logout();
+      // console.log('Logout successful!'); // Removed
     } catch (error) {
       if (error instanceof Error) {
         console.error('Logout failed: ' + error.message);
@@ -80,7 +93,7 @@ const Header: React.FC<HeaderProps> = () => {
     {
       label: 'My Videos',
       icon: 'video',
-      onClick: () => window.location.href = '#my-videos'
+      onClick: () => setIsSettingsModalOpen(true)
     },
     {
       label: 'Subscription',
@@ -118,7 +131,7 @@ const Header: React.FC<HeaderProps> = () => {
 
   const currentTheme = theme === 'system' ? systemTheme : theme;
 
-  const logoSrc = {
+  const defaultLogoSrc = {
     desktop: {
       dark: '/assets/images/logo/logo-light.png',
       light: '/assets/images/logo/logo-dark.png'
@@ -129,19 +142,40 @@ const Header: React.FC<HeaderProps> = () => {
     }
   };
 
+  const navigationVariants = {
+    hidden: { opacity: 0, y: -10 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: {
+        staggerChildren: 0.05,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const navItemVariants = {
+    hidden: { opacity: 0, y: -20 },
+    visible: { opacity: 1, y: 0 },
+    hover: { 
+      y: -4,
+      color: 'var(--color-primary)',
+      transition: { type: "spring", stiffness: 300 }
+    }
+  };
+
   return (
     <motion.header
-      variants={fadeIn}
-      initial="initial"
-      animate="animate"
-      className="sticky top-0 sticky-header bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-md z-50"
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ type: "spring", stiffness: 50, damping: 20 }}
+      className="sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl shadow-lg z-50 border-b border-gray-200 dark:border-gray-800"
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16" style={{
                   zIndex: 'var(--z-dropdown)',
                   position: 'relative'
                 }}>
-          {/* Updated Logo Section */}
           <motion.a
             href="/"
             className="flex items-center space-x-2"
@@ -152,83 +186,83 @@ const Header: React.FC<HeaderProps> = () => {
               {mounted && (
                 <>
                   <OptimizedImage
-                    src={currentTheme === 'dark' ? logoSrc.desktop.dark : logoSrc.desktop.light}
+                    src={currentTheme === 'dark' ? (darkLogoUrl || defaultLogoSrc.desktop.dark) : (lightLogoUrl || defaultLogoSrc.desktop.light)}
                     alt="Story Time"
-                    fill
                     className="hidden md:block object-contain"
-                    priority
                     sizes="(max-width: 768px) 0px, 100px"
                   />
                   <OptimizedImage
-                    src={currentTheme === 'dark' ? logoSrc.mobile.dark : logoSrc.mobile.light}
+                    src={currentTheme === 'dark' ? (darkLogoUrl || defaultLogoSrc.mobile.dark) : (lightLogoUrl || defaultLogoSrc.mobile.light)}
                     alt="Story Time"
-                    fill
                     className="block md:hidden object-contain"
-                    priority
                     sizes="(max-width: 768px) 80px, 0px"
                   />
                 </>
               )}
             </div>
-
           </motion.a>
 
-          {/* Desktop Navigation */}
           <motion.nav
-            variants={stagger}
-            initial="initial"
-            animate="animate"
-            className="hidden md:flex space-x-7"
+            variants={navigationVariants}
+            initial="hidden"
+            animate="visible"
+            className="hidden md:flex space-x-1"
           >
             {navigationItems.map((item) => (
               <motion.a
                 key={item.href}
                 href={item.href}
-                variants={slideIn}
-                whileHover={{ y: -2 }}
-                className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white
-                         transition-colors duration-200"
+                variants={navItemVariants}
+                whileHover="hover"
+                className="px-4 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
               >
                 {item.label}
               </motion.a>
             ))}
           </motion.nav>
 
-          {/* Right side actions with animations */}
           <motion.div
-            variants={stagger}
-            className="flex items-center space-x-5"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center space-x-4"
           >
-            <div className="hidden md:flex">
-            <CurrencySwitch />
-            </div>
-            <ModeToggle />
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="hidden md:block"
+            >
+              <CurrencySwitch />
+            </motion.div>
 
-            {/* User Menu */}
+            <motion.div whileHover={{ scale: 1.05 }}>
+              <ModeToggle />
+            </motion.div>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  className="relative p-0 h-auto w-auto hover:bg-transparent"
-                >
-                  <div className="w-8 h-8 overflow-hidden rounded-full">
-                    {user ? (
-                      <Avatar 
-                        user={user} 
-                        size="sm"
-                        className="border-2 border-transparent hover:border-primary transition-colors"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-muted">
-                        <i className="fas fa-user text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                </Button>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button 
+                    variant="ghost" 
+                    className="relative p-0 h-10 w-10 rounded-full overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all duration-200"
+                  >
+                    <div className="w-8 h-8 overflow-hidden rounded-full">
+                      {user ? (
+                        <Avatar 
+                          user={user} 
+                          size="sm"
+                          className="border-2 border-transparent hover:border-primary transition-colors"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-muted">
+                          <i className="fas fa-user text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  </Button>
+                </motion.div>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-56 p-2 mt-1"
+                className="w-64 p-2 mt-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl"
               >
                 {user && (
                   <>
@@ -259,30 +293,29 @@ const Header: React.FC<HeaderProps> = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Mobile Menu Button */}
-            <button
-              className="md:hidden p-4"
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               onClick={toggleMenu}
             >
-              <i className={`fas fa-${isOpen ? 'times' : 'bars'}`} />
-            </button>
+              <motion.i 
+                animate={{ rotate: isOpen ? 90 : 0 }}
+                className={`fas fa-${isOpen ? 'times' : 'bars'}`} 
+              />
+            </motion.button>
           </motion.div>
         </div>
       </div>
 
-      {/* Mobile Navigation */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            variants={mobileMenuVariants}
-            initial="closed"
-            animate="open"
-            exit="closed"
-            className="md:hidden fixed inset-y-0 right-0 w-full max-w-sm bg-white dark:bg-gray-900 shadow-xl"
-            style={{
-              zIndex: 'var(--z-dropdown)',
-              position: 'relative'
-            }}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden overflow-hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800"
           >
             <nav className="px-4 pt-2 pb-4 space-y-2">
               {navigationItems.map((item) => (
@@ -305,21 +338,19 @@ const Header: React.FC<HeaderProps> = () => {
         )}
       </AnimatePresence>
 
-
-      {/* Modals */}
       {hasMounted && (
         <>
           <DynamicLoginModal
             isOpen={isLoginModalOpen}
             onClose={() => setIsLoginModalOpen(false)}
-            onLoginSuccess={() => console.log('Login successful!')}
+            onLoginSuccess={() => { /* console.log('Login successful!'); */ }} // Removed log
             setIsSignupModalOpen={setIsSignupModalOpen}
           />
           <DynamicSignupModal
             isOpen={isSignupModalOpen}
             onClose={() => setIsSignupModalOpen(false)}
             setIsLoginModalOpen={setIsLoginModalOpen}
-            onSignupSuccess={() => console.log('Signup successful!')}
+            onSignupSuccess={() => { /* console.log('Signup successful!'); */ }} // Removed log
           />
           <DynamicSettingsModal
             isOpen={isSettingsModalOpen}

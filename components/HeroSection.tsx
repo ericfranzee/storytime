@@ -2,11 +2,31 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useTheme } from 'next-themes';
+import { throttle } from 'lodash';
 
 const HeroSection = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+    const handleResize = throttle(() => {
+      setIsMobile(window.innerWidth < 768);
+    }, 200);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    let currentMountRef = mountRef.current;
+    return () => {
+      if (currentMountRef) {
+        // Cleanup code here
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let container: HTMLDivElement;
@@ -16,9 +36,12 @@ const HeroSection = () => {
     let mouseX = 0, mouseY = 0;
     let windowHalfX = window.innerWidth / 2;
     let windowHalfY = window.innerHeight / 2;
-let SEPARATION = 100, AMOUNTX = 25, AMOUNTY = 25;
-    let particles: THREE.Mesh[], particle: THREE.Mesh;
-    let count = 0;
+    // Reduce particle count for better performance
+    const SEPARATION = 120;
+    const AMOUNTX = isMobile ? 15 : 20;
+    const AMOUNTY = isMobile ? 15 : 20;
+    const particles: THREE.Mesh[] = [];
+    const count = 0;
 
     const init = () => {
       container = document.createElement('div');
@@ -26,36 +49,47 @@ let SEPARATION = 100, AMOUNTX = 25, AMOUNTY = 25;
         mountRef.current.appendChild(container);
       }
 
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 10000);
-      camera.position.z = 1000;
+      camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 8000);
+      camera.position.z = 800;
 
       scene = new THREE.Scene();
-
-      particles = [];
-
-      let i = 0;
-      let geometry = new THREE.SphereGeometry(1, 32, 32);
-      let material = new THREE.MeshBasicMaterial({
-        color: theme === 'dark' ? 0xffffff : theme === 'light' ? 0x000000 : typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 0xffffff : 0x000000,
+      
+      const geometry = new THREE.SphereGeometry(1, 16, 16); // Reduced geometry complexity
+      const material = new THREE.MeshBasicMaterial({
+        color: theme === 'dark' ? 0xffffff : 0x000000,
+        transparent: true,
+        opacity: 0.8,
       });
 
+      // Create particles with optimized creation
+      const particleSystem = new THREE.Group();
       for (let ix = 0; ix < AMOUNTX; ix++) {
         for (let iy = 0; iy < AMOUNTY; iy++) {
-          particle = particles[i++] = new THREE.Mesh(geometry, material);
+          const particle = new THREE.Mesh(geometry, material);
           particle.position.x = ix * SEPARATION - ((AMOUNTX * SEPARATION) / 2);
           particle.position.z = iy * SEPARATION - ((AMOUNTY * SEPARATION) / 2);
-          scene.add(particle);
+          particles.push(particle);
+          particleSystem.add(particle);
         }
       }
+      scene.add(particleSystem);
 
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer = new THREE.WebGLRenderer({ 
+        antialias: false, 
+        powerPreference: "high-performance",
+        alpha: true 
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setClearColor(theme === 'dark' ? 0x111827 : theme === 'light' ? 0xf3f3f3 : typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches ? 0x111827 : 0xf3f3f3,);
       container.appendChild(renderer.domElement);
 
-      document.addEventListener('mousemove', onDocumentMouseMove);
-      window.addEventListener('resize', onWindowResize);
+      const throttledMouseMove = throttle(onDocumentMouseMove, 16);
+      document.addEventListener('mousemove', throttledMouseMove);
+      
+      const debouncedResize = throttle(onWindowResize, 200);
+      window.addEventListener('resize', debouncedResize);
+      
+      setIsLoading(false);
     };
 
     const onWindowResize = () => {
@@ -71,24 +105,26 @@ let SEPARATION = 100, AMOUNTX = 25, AMOUNTY = 25;
       mouseY = event.clientY - windowHalfY;
     };
 
-const animate = () => {
-      camera.position.x += (mouseX - camera.position.x) * 0.05;
-      camera.position.y += (-mouseY - camera.position.y) * 0.05;
+    const animate = () => {
+      if (!renderer) return;
+      
+      camera.position.x += (mouseX - camera.position.x) * 0.04;
+      camera.position.y += (-mouseY - camera.position.y) * 0.04;
       camera.lookAt(scene.position);
 
-      let i = 0;
-      for (let ix = 0; ix < AMOUNTX; ix++) {
-        for (let iy = 0; iy < AMOUNTY; iy++) {
-          particle = particles[i++];
-          particle.position.y = (Math.sin((ix + count) * 0.3) * 50) + (Math.sin((iy + count) * 0.5) * 50);
-          particle.scale.x = particle.scale.y = particle.scale.z = (Math.sin((ix + count) * 0.3) + 1) * 4 + (Math.sin((iy + count) * 0.5) + 1) * 4;
-        }
-      }
+      const i = 0;
+      const time = Date.now() * 0.001;
+      
+      particles.forEach((particle, i) => {
+        const ix = Math.floor(i / AMOUNTY);
+        const iy = i % AMOUNTY;
+        particle.position.y = (Math.sin((ix + time) * 0.3) * 50) + (Math.sin((iy + time) * 0.5) * 50);
+        particle.scale.setScalar((Math.sin((ix + time) * 0.3) + 2) * 2 + (Math.sin((iy + time) * 0.5) + 2) * 2);
+      });
 
       renderer.render(scene, camera);
-      count += 0.1;
-  requestAnimationFrame(animate);
-};
+      requestAnimationFrame(animate);
+    };
 
     init();
     animate();
@@ -105,54 +141,63 @@ const animate = () => {
       });
       renderer.dispose();
     };
-  }, [theme]);
+  }, [theme, isMobile]);
 
-return (
-  <div className="relative w-full h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-400 to-blue-500 overflow-hidden">
-    <div
-      className="absolute top-[50px] buttom-[100px] text-center z-10 max-w-4xl px-4"
-    >
-      <h1 className="text-4xl font-bold sm:text-5xl md:text-6xl animate-fade-in">
-        Transform Your Stories into Stunning Videos
-      </h1>
-      <p className="mb-20 mt-6 text-lg sm:text-xl md:text-xl animate-fade-in delay-100 max-w-2xl mx-auto">
-        Harness the power of AI to turn your African stories, history, and news into captivating videos. 
-        Perfect for content creators, educators, and storytellers.
-      </p>
-      <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in delay-200">
-        <button
-          className="px-8 py-4 bg-white text-blue-600 rounded-full text-lg font-semibold hover:bg-blue-50 transition-all"        >
+  return (
+    <div className="relative w-full h-screen overflow-hidden">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+        </div>
+      )}
+      <div className="absolute inset-0 backdrop-blur-[2px]" />
+      <div className="absolute top-[50px] text-center z-10 w-full px-4 sm:px-6 lg:px-8">
+        <h1 className="text-4xl font-bold sm:text-5xl md:text-6xl bg-clip-text animate-fade-in">
+          Transform Your Stories<br/>into Stunning Videos
+        </h1>
+        <p className="mb-20 mt-6 text-lg sm:text-xl md:text-xl animate-fade-in delay-100 max-w-2xl mx-auto">
+          Harness the power of AI to turn your African stories, history, and news into captivating videos. 
+          Perfect for content creators, educators, and storytellers.
+        </p>
+        <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in delay-200">
+          <button
+            className="px-8 py-4 bg-white text-blue-600 rounded-full text-lg font-semibold hover:bg-blue-50 transition-all"        >
+            <a 
+            href="#story"
+          >
+            Start Creating Now
+            </a>
+          </button>
           <a 
-          href="#story"
-         >
-          Start Creating Now
+            href="#demo"
+            className="px-8 py-4 bg-transparent border-2 rounded-full text-lg font-semibold hover:bg-gray-500 transition-all"
+          >
+            Watch Demo
           </a>
-        </button>
-        <a 
-          href="#demo"
-          className="px-8 py-4 bg-transparent border-2 rounded-full text-lg font-semibold hover:bg-gray-500 transition-all"
-        >
-          Watch Demo
-        </a>
-      </div>
-      <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-        <div className="p-4">
-          <h3 className="text-2xl font-bold">3K+</h3>
-          <p>Videos Created</p>
         </div>
-        <div className="p-4">
-          <h3 className="text-2xl font-bold">500+</h3>
-          <p>Happy Users</p>
-        </div>
-        <div className="p-4">
-          <h3 className="text-2xl font-bold">4.9/5</h3>
-          <p>User Rating</p>
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+          <div className="p-4">
+            <h3 className="text-2xl font-bold">3K+</h3>
+            <p>Videos Created</p>
+          </div>
+          <div className="p-4">
+            <h3 className="text-2xl font-bold">500+</h3>
+            <p>Happy Users</p>
+          </div>
+          <div className="p-4">
+            <h3 className="text-2xl font-bold">4.9/5</h3>
+            <p>User Rating</p>
+          </div>
         </div>
       </div>
+      <div 
+        ref={mountRef} 
+        className={`relative z-0 w-full h-full transition-opacity duration-500 ${
+          isLoading ? 'opacity-0' : 'opacity-100'
+        }`} 
+      />
     </div>
-    <div ref={mountRef} className={`hero-section ${theme === 'dark' ? 'dark' : 'light'} w-full h-[calc(100vh-50px)] sm:h-[calc(100vh-100px)] md:h-[calc(100vh-150px)] flex items-center justify-center`} />
-  </div>
-);
+  );
 };
 
 export default HeroSection;

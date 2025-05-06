@@ -1,0 +1,18 @@
+Okay, the scripts/set-initial-admin.ts script is created.
+
+How to Use the Initial Admin Script:
+
+Install Dependencies (if needed): You'll need ts-node to run this TypeScript script directly. You might also need dotenv if it wasn't already installed (though it looks like it is in your package.json). Check your devDependencies in package.json. If ts-node or @types/node are missing, install them:
+
+pnpm add -D ts-node @types/node
+
+Find the User ID: Get the Firebase Authentication User ID (UID) of the user you want to make the first admin. You can find this in the Firebase Console (Authentication -> Users tab).
+
+Run the Script: Open your terminal in the project root (c:/src/storytime) and run the script, replacing <USER_ID> with the actual UID:
+
+npx ts-node scripts/set-initial-admin.ts <USER_ID>
+
+Example: npx ts-node scripts/set-initial-admin.ts abc123xyz789
+
+Check Output: The script will log its progress and confirm if the claim was set successfully.
+User Re-Login: The user whose claim was set must log out and log back in for the new claim to be included in their session cookie.

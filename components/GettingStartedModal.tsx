@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
+import Image from 'next/image';
 
 interface GettingStartedModalProps {
   isOpen: boolean;
@@ -54,9 +55,11 @@ const GettingStartedModal: React.FC<GettingStartedModalProps> = ({ isOpen, onClo
           </div>
 
           <div className="mb-8">
-            <img
+            <Image
               src={steps[currentStep].image}
               alt={steps[currentStep].title}
+              width={500}
+              height={300}
               className="w-full h-48 object-contain mb-4"
             />
             <p className="text-gray-600 dark:text-gray-300 text-lg">

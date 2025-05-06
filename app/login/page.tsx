@@ -1,27 +1,13 @@
-"use client";
+import React, { Suspense } from 'react';
+import LoginHandler from './login-handler'; // Import the new client component
 
-import React, { useState } from 'react';
-import LoginModal from '@/components/LoginModal';
-import { toast } from 'react-toastify';
-
-const LoginPage: React.FC = () => {
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
-
-  const handleLoginSuccess = () => {
-    toast.success('Login successful!');
-  };
-
+// This page component remains a Server Component (or can be prerendered)
+const LoginPage = () => {
   return (
-    <div>
-      <h1>Login Page</h1>
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        setIsSignupModalOpen={setIsSignupModalOpen}
-        onLoginSuccess={handleLoginSuccess}
-      />
-    </div>
+    // Wrap the client component that uses useSearchParams in Suspense
+    <Suspense fallback={<div className="flex justify-center items-center h-screen"><p>Loading...</p></div>}>
+      <LoginHandler />
+    </Suspense>
   );
 };
 

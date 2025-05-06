@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestore, doc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
-import { calculateExpiryDate, getVideoLimit } from '@/app/firebase';
+import { getFirestore, doc, getDoc, writeBatch } from 'firebase/firestore'; // Removed setDoc as it's not used directly
+import { calculateExpiryDate, calculateAnnualExpiryDate, getVideoLimit } from '@/app/firebase'; // Import calculateAnnualExpiryDate
 
 export const dynamic = 'force-dynamic';
 
@@ -8,21 +8,28 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     const { reference, status, transaction, metadata } = data;
-    const userId = metadata.userId;
-    const subscriptionPlan = metadata.plan;
+    const userId = metadata?.userId; // Use optional chaining for safety
+    const subscriptionPlan = metadata?.plan;
+    const billingPeriod = metadata?.billingPeriod; // Get billing period
 
-    // Validate Paystack response
-    if (!reference || !status || !transaction || !userId || !subscriptionPlan) {
-      console.error('Invalid Paystack response:', data);
-      return NextResponse.json({ message: 'Invalid Paystack response' }, { status: 400 });
+    // Validate Paystack response - include billingPeriod check
+    if (!reference || !status || !transaction || !userId || !subscriptionPlan || !billingPeriod) {
+      console.error('Invalid Paystack response (missing required metadata):', data);
+      return NextResponse.json({ message: 'Invalid Paystack response: Missing required metadata' }, { status: 400 });
     }
 
     if (status === 'success') {
       const subscriptionDate = new Date();
-      const expiryDate = calculateExpiryDate(subscriptionDate).getTime();
+      // Calculate expiry based on billing period
+      const expiryDateObj = billingPeriod === 'yearly' 
+        ? calculateAnnualExpiryDate(subscriptionDate) 
+        : calculateExpiryDate(subscriptionDate);
+      const expiryDate = expiryDateObj.getTime();
+      const expiryDateISO = expiryDateObj.toISOString();
+      
       const videoLimit = getVideoLimit(subscriptionPlan);
-      const expiryDateISO = new Date(expiryDate).toISOString();
-      const resetDate = expiryDate; // 30 days after subscription
+      // Reset date should align with expiry for simplicity, or could be monthly regardless
+      const resetDate = expiryDate; // Reset usage when subscription expires
 
       const db = getFirestore();
       const userDocRef = doc(db, 'users', userId);
@@ -34,7 +41,7 @@ export async function POST(request: NextRequest) {
       }
 
       const userData = userDoc.data();
-      const subscriptionId = userData.subscriptionId;
+      // const subscriptionId = userData.subscriptionId; // Removed unused variable
 
       try {
         // Update both user and subscription documents
@@ -65,16 +72,24 @@ export async function POST(request: NextRequest) {
 
         await batch.commit();
         return NextResponse.json({ message: 'Subscription recorded successfully' });
-      } catch (error: any) {
-        console.error('Error recording subscription:', error);
+      } catch (error: unknown) { // Use unknown
+        let message = 'Internal Server Error';
+        if (error instanceof Error) {
+          message = error.message;
+        }
+        console.error('Error recording subscription:', message);
         return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
       }
     } else {
       console.log(`Payment failed for reference ${reference}, status: ${status}`);
       return NextResponse.json({ message: 'Payment not successful' }, { status: 400 });
     }
-  } catch (error: any) {
-    console.error('Error processing Paystack webhook:', error);
+  } catch (error: unknown) { // Use unknown
+    let message = 'Internal Server Error';
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    console.error('Error processing Paystack webhook:', message);
     return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }

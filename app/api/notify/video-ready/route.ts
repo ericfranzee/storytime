@@ -15,16 +15,24 @@ export async function POST(request: Request) {
     const result = await sendVideoReadyEmail(email, videoUrl);
 
     if (!result.success) {
+      // Include the specific error message from sendVideoReadyEmail
       return NextResponse.json(
-        { error: 'Failed to send email notification' },
+        { error: `Failed to send email notification: ${result.error}` },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error('API route error:', error);
+    let message = 'Unknown error';
+    if (error instanceof Error) {
+      message = error.message;
+    } else {
+      message = String(error);
+    }
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: `Internal server error: ${message}` },
       { status: 500 }
     );
   }

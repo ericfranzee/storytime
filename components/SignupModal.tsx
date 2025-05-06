@@ -29,6 +29,18 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, setIsLoginMo
   const [hasPendingVerification, setHasPendingVerification] = useState(false);
   const { login } = useAuth();
 
+  const strengthIndicators = [
+    { color: 'red', label: 'Weak' },
+    { color: 'orange', label: 'Fair' },
+    { color: 'yellow', label: 'Good' },
+    { color: 'green', label: 'Strong' }
+  ];
+
+  const getCurrentStrength = () => {
+    const index = Math.floor(passwordStrength / 25);
+    return strengthIndicators[index] || strengthIndicators[0];
+  };
+
   const validatePassword = (password: string) => {
     let strength = 0;
     if (password.length >= 8) strength += 25;
@@ -137,7 +149,12 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, setIsLoginMo
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        className="p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-xl relative"
+      >
         <button 
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-500"
@@ -147,12 +164,30 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, setIsLoginMo
           </svg>
         </button>
 
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">Create Account</h2>
-          </div>
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500" />
+        
+        {verificationSent ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="space-y-6"
+          >
+            <div className="text-center">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="mx-auto w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4"
+              >
+                <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </motion.div>
+              <h3 className="text-xl font-semibold mb-2">Check your email</h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                We've sent a verification code to {pendingEmail}
+              </p>
+            </div>
 
-          {verificationSent ? (
             <div className="space-y-4">
               <form onSubmit={handleVerificationSubmit} className="space-y-4">
                 <div>
@@ -181,8 +216,18 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, setIsLoginMo
                 Resend verification code
               </button>
             </div>
-          ) : (
-            <form onSubmit={handleEmailPasswordSignUp} className="space-y-4">
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-6"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Create Account</h2>
+            </div>
+
+            <form onSubmit={handleEmailPasswordSignUp} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium mb-1">Email</label>
                 <input
@@ -208,7 +253,26 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, setIsLoginMo
                   required
                   disabled={isLoading}
                 />
-                <Progress value={passwordStrength} className="h-1 mt-2" />
+                <div className="space-y-2">
+                  <motion.div
+                    className="h-1 bg-gray-200 rounded-full overflow-hidden"
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                  >
+                    <motion.div
+                      className={`h-full transition-all duration-300 rounded-full bg-gradient-to-r from-${getCurrentStrength().color}-500 to-${getCurrentStrength().color}-600`}
+                      style={{ width: `${passwordStrength}%` }}
+                    />
+                  </motion.div>
+                  <div className="flex justify-between text-xs">
+                    <span className={`text-${getCurrentStrength().color}-500`}>
+                      {getCurrentStrength().label}
+                    </span>
+                    <span className="text-gray-500">
+                      {passwordStrength}% Complete
+                    </span>
+                  </div>
+                </div>
                 <div className="text-xs text-gray-500 mt-1">
                   Password must contain at least 8 characters, including uppercase, numbers & symbols
                 </div>
@@ -234,44 +298,44 @@ const SignupModal: React.FC<SignupModalProps> = ({ isOpen, onClose, setIsLoginMo
                 {isLoading ? "Creating Account..." : "Sign Up"}
               </Button>
             </form>
-          )}
+          </motion.div>
+        )}
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">Or continue with</span>
-            </div>
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
           </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-          >
-            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-              <path
-                fill="currentColor"
-                d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
-              />
-            </svg>
-            Continue with Google
-          </Button>
-
-          <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
-            Already have an account?{' '}
-            <button
-              onClick={() => { onClose(); setIsLoginModalOpen(true); }}
-              className="text-blue-500 hover:text-blue-600 font-medium"
-            >
-              Log in
-            </button>
-          </p>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">Or continue with</span>
+          </div>
         </div>
-      </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={handleGoogleSignIn}
+          disabled={isLoading}
+        >
+          <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+            <path
+              fill="currentColor"
+              d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
+            />
+          </svg>
+          Continue with Google
+        </Button>
+
+        <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
+          Already have an account?{' '}
+          <button
+            onClick={() => { onClose(); setIsLoginModalOpen(true); }}
+            className="text-blue-500 hover:text-blue-600 font-medium"
+          >
+            Log in
+          </button>
+        </p>
+      </motion.div>
     </Modal>
   );
 };

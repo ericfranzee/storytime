@@ -37,8 +37,9 @@ export async function sendVideoReadyEmail(to: string, videoUrl: string) {
       html: emailTemplate,
     });
     return { success: true };
-  } catch (error) {
+  } catch (error: any) { // Add type 'any' to access error properties
     console.error('Email send error:', error);
-    return { success: false, error };
+    // Return the specific error message
+    return { success: false, error: error.message || 'Unknown email sending error' };
   }
 }

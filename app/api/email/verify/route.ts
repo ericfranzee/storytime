@@ -18,7 +18,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // Verify SMTP connection
-transporter.verify(function(error, success) {
+transporter.verify(function(error) { // Removed unused success parameter
   if (error) {
     console.error('SMTP Connection Error:', error);
   } else {
@@ -66,14 +66,17 @@ export async function POST(request: NextRequest) {
         console.log('Email sent:', info.response);
         return NextResponse.json({ 
           success: true,
-          messageId: info.messageId 
+          messageId: info.messageId
         });
-      } catch (emailError: any) {
+      } catch (emailError: unknown) { // Use unknown for type safety
         console.error('SMTP Error:', emailError);
-        return NextResponse.json({ 
-          success: false, 
-          error: emailError.message,
-          code: emailError.code 
+        // Type check before accessing properties
+        const errorMessage = emailError instanceof Error ? emailError.message : 'Unknown SMTP error';
+        const errorCode = typeof emailError === 'object' && emailError !== null && 'code' in emailError ? (emailError as { code: string }).code : undefined;
+        return NextResponse.json({
+          success: false,
+          error: errorMessage,
+          code: errorCode
         }, { status: 500 });
       }
     } else {
@@ -88,12 +91,15 @@ export async function POST(request: NextRequest) {
         dev: true
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) { // Use unknown for type safety
     console.error('Verification Route Error:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    // Type check before accessing properties
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined;
+    return NextResponse.json({
+      success: false,
+      error: errorMessage,
+      stack: errorStack
     }, { status: 500 });
   }
 }

@@ -1,8 +1,10 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
 
 const SuccessStoriesSection = () => {
+  const [activeStory, setActiveStory] = useState<number | null>(null);
   const stories = [
     {
       title: "Heritage Preservation",
@@ -30,62 +32,126 @@ const SuccessStoriesSection = () => {
     }
   ];
 
+  const [ref, inView] = useInView({
+    triggerOnce: true,
+    threshold: 0.1,
+  });
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.2 }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, ease: "easeOut" }
+    },
+    hover: {
+      y: -10,
+      scale: 1.02,
+      transition: { duration: 0.2, ease: "easeInOut" }
+    }
+  };
+
   return (
-    <section className="py-20 bg-white dark:bg-gray-900" id="success-stories">
-      <div className="container mx-auto px-4">
-        <h2 className="text-4xl font-bold text-center mb-4">Success Stories</h2>
-        <p className="text-center text-gray-600 dark:text-gray-400 mb-12 max-w-2xl mx-auto">
-          Real organizations achieving extraordinary results with Story Time
-        </p>
+    <section className="py-24 bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900" id="success-stories">
+      <div ref={ref} className="container mx-auto px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-16"
+        >
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Stories of Impact
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 text-lg max-w-2xl mx-auto">
+            Discover how organizations are revolutionizing storytelling with our platform
+          </p>
+        </motion.div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate={inView ? "visible" : "hidden"}
+          className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+        >
           {stories.map((story, index) => (
             <motion.div
               key={index}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.2 }}
-              className="relative group"
+              variants={cardVariants}
+              whileHover="hover"
+              className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300"
+              onHoverStart={() => setActiveStory(index)}
+              onHoverEnd={() => setActiveStory(null)}
             >
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black opacity-50 rounded-xl" />
-              <div className="relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-xl">
-                <div className="h-48 bg-gray-200 relative">
-                  <img 
-                    src={story.image} 
-                    alt={story.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-4 right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-sm">
-                    {story.impact}
+              <div className="relative h-48 overflow-hidden">
+                <motion.img 
+                  src={story.image} 
+                  alt={story.title}
+                  className="w-full h-full object-cover"
+                  whileHover={{ scale: 1.1 }}
+                  transition={{ duration: 0.3 }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <motion.div 
+                  className="absolute bottom-4 left-4 right-4 text-white"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">{story.organization}</span>
+                    <span className="bg-blue-500/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm">
+                      {story.impact}
+                    </span>
                   </div>
-                </div>
+                </motion.div>
+              </div>
+              
+              <div className="p-6">
+                <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">
+                  {story.title}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-4">
+                  {story.description}
+                </p>
                 
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-2">{story.title}</h3>
-                  <p className="text-sm text-blue-600 dark:text-blue-400 mb-3">{story.organization}</p>
-                  <p className="text-gray-600 dark:text-gray-300 mb-4">{story.description}</p>
-                  
-                  <div className="border-t pt-4">
-                    <h4 className="text-sm font-semibold mb-2">Key Metrics:</h4>
-                    <div className="grid grid-cols-1 gap-2">
-                      {story.metrics.map((metric, idx) => (
-                        <div 
-                          key={idx}
-                          className="flex items-center text-sm text-gray-600 dark:text-gray-400"
-                        >
-                          <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                          </svg>
-                          {metric}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <motion.div 
+                  className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700"
+                  animate={{ opacity: activeStory === index ? 1 : 0.7 }}
+                >
+                  {story.metrics.map((metric, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ x: -20, opacity: 0 }}
+                      animate={{ x: 0, opacity: 1 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className="flex items-center text-sm"
+                    >
+                      <motion.svg
+                        className="w-5 h-5 text-green-500 mr-2"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: idx * 0.1 }}
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
+                      </motion.svg>
+                      {metric}
+                    </motion.div>
+                  ))}
+                </motion.div>
               </div>
             </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

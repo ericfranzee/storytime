@@ -1,9 +1,74 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
+// Ensure Firebase Admin imports and runtime export are removed
 
-export default function middleware(request: NextRequest) {
-  const response = NextResponse.next();
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const response = NextResponse.next(); // Initialize response
 
+  // --- Admin Panel Check ---
+  if (pathname.startsWith('/panel')) {
+    const token = request.cookies.get('__session')?.value; // Use the cookie name
+
+    if (!token) {
+      // No token, redirect to login
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      // console.log('Middleware: No token found, redirecting to login.'); // Commented out
+      return NextResponse.redirect(loginUrl);
+    }
+
+    try {
+      // Revert to calling the internal API route to verify admin status
+      const verifyUrl = new URL('/api/auth/verify-admin', request.url); // Use absolute URL based on request
+      console.log(`Middleware: Calling verification API: ${verifyUrl.toString()}`);
+      const verifyResponse = await fetch(verifyUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Pass the cookie correctly in the 'Cookie' header
+          'Cookie': `__session=${token}`,
+        },
+        // Ensure cookies are sent cross-origin if applicable (though likely same-origin here)
+        // credentials: 'include', // Usually not needed for same-origin API calls from middleware
+      });
+
+      // Log status for debugging
+      console.log(`Middleware: Verification API response status: ${verifyResponse.status}`);
+
+      if (!verifyResponse.ok) {
+        // API returned an error (e.g., 401, 403, 500)
+        const errorData = await verifyResponse.json().catch(() => ({})); // Avoid crashing if body isn't JSON
+        console.log('Middleware: Verification failed or user not admin.', errorData);
+        // Redirect to home page if not admin or verification failed
+        const homeUrl = new URL('/', request.url);
+        return NextResponse.redirect(homeUrl);
+      }
+
+      // Check the response body for admin status
+      const { isAdmin } = await verifyResponse.json();
+
+      if (!isAdmin) {
+         console.log('Middleware: User is not admin, redirecting to home.');
+         // Explicitly not admin, redirect to home
+         const homeUrl = new URL('/', request.url);
+         return NextResponse.redirect(homeUrl);
+      }
+
+      // If isAdmin is true, allow the request to proceed
+      console.log('Middleware: User is admin, allowing access.');
+      // Continue to the requested page (handled by returning response later)
+
+    } catch (error) {
+      console.error('Middleware: Error calling verification API:', error);
+      // Redirect to home on unexpected errors during verification
+      const homeUrl = new URL('/', request.url);
+      return NextResponse.redirect(homeUrl);
+    }
+  }
+  // --- End Admin Panel Check ---
+
+
+  // --- Existing Security Headers Logic ---
   const csp = [
     // Base directives
     "default-src 'self' https: blob: data:",

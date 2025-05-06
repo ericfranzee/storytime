@@ -19,3 +19,13 @@ export const getRandomColor = (text: string): string => {
   ];
   return colors[Math.abs(hash) % colors.length];
 };
+
+export const generateSlug = (title: string): string => {
+  return title
+    .toLowerCase()
+    .replace(/ /g, '-') // Replace spaces with hyphens
+    .replace(/[^\w-]+/g, '') // Remove all non-word chars except hyphens
+    .replace(/--+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-+/, '') // Trim hyphen from start of text
+    .replace(/-+$/, ''); // Trim hyphen from end of text
+};

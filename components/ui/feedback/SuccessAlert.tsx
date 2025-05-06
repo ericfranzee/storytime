@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { successMessages } from '@/lib/error-messages';
+// import { successMessages } from '@/lib/error-messages';
 
 interface SuccessAlertProps {
   message: string;

@@ -1,6 +1,9 @@
+"use client";
 import React from 'react';
 import { auth, getUserSubscription } from '@/app/firebase';
 import { getFirestore, doc, onSnapshot, DocumentData } from "firebase/firestore";
+import { motion } from 'framer-motion';
+import { CreditCard, Calendar, Activity, AlertCircle } from 'lucide-react';
 
 interface Subscription {
   plan: string;
@@ -72,37 +75,97 @@ const PaymentSection = () => {
     fetchData();
   }, []);
 
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-[200px] flex items-center justify-center"
+      >
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </motion.div>
+    );
   }
 
   return (
-    <div>
-      <h2 className="text-4 font-bold">Subscription Details</h2>
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-8"
+    >
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          Subscription Overview
+        </h2>
+        {subscription?.status === 'active' && (
+          <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
+            Active
+          </span>
+        )}
+      </div>
+
       {subscription ? (
-        <div>
-          <p>Plan: {subscription.plan}</p>
-          <p>Status: {subscription.status}</p>
-          <p>Payment Method: {subscription.paymentMethod || 'N/A'}</p>
-          <p>Usage: {subscription.usage}</p>
-          <p>Remaining Usage: {subscription.remainingUsage}</p>
-          <p>
-            Reset/Expiry Date:{' '}
-            {subscription.expiryDateISO ? (
-              new Date(subscription.expiryDateISO).toLocaleDateString(undefined, {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })
-            ) : (
-              'N/A'
-            )}
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            className="p-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl text-white"
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-sm opacity-80">Current Plan</p>
+                <h3 className="text-2xl font-bold">{subscription.plan}</h3>
+              </div>
+              <CreditCard className="w-6 h-6" />
+            </div>
+            {/* ...other subscription details... */}
+          </motion.div>
+          
+
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            className="p-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700"
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <p className="text-sm text-gray-500">Usage</p>
+                <h3 className="text-2xl font-bold">{subscription.usage} / {subscription.usage + subscription.remainingUsage}</h3>
+              </div>
+              <Activity className="w-6 h-6 text-blue-500" />
+            </div>
+            <div className="mt-4">
+              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ 
+                    width: `${(subscription.usage / (subscription.usage + subscription.remainingUsage)) * 100}%` 
+                  }}
+                  className="h-full bg-blue-500"
+                />
+              </div>
+            </div>
+          </motion.div>
         </div>
       ) : (
-        <p>No active subscription</p>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl text-center"
+        >
+          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400 mb-4">No active subscription found</p>
+          <a
+            href="/#pricing">
+            View Plans
+          </a>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

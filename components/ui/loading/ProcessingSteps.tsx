@@ -11,7 +11,7 @@ interface ProcessingStepsProps {
   currentStep: number;
 }
 
-const ProcessingSteps: React.FC<ProcessingStepsProps> = ({ steps, currentStep }) => {
+const ProcessingSteps: React.FC<ProcessingStepsProps> = ({ steps }) => {
   return (
     <div className="space-y-4">
       {steps.map((step, index) => (
