@@ -1,6 +1,8 @@
 import React from 'react';
 import CurrencySwitch from "./CurrencySwitch";
 import { Button } from "@/components/ui/button";
+import { settingsService } from '@/lib/firebase/settings-service';
+import { useTheme } from 'next-themes'; // Import useTheme
 
 const Footer = () => {
   const footerSections = [
