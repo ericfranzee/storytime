@@ -58,6 +58,11 @@ export const useAuth = (): AuthState & AuthActions => {
     setLoading(true); // Set loading true when listener starts
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       console.log('Auth state changed:', firebaseUser?.uid);
+      if (firebaseUser) {
+        console.log('Attempting to create session for user:', firebaseUser.uid);
+      } else {
+        console.log('Attempting to clear session for logged out user.');
+      }
       createSession(firebaseUser); // Call session creation/clearing logic
     });
 
@@ -71,7 +76,7 @@ export const useAuth = (): AuthState & AuthActions => {
   // Placeholder login function (might not be needed if modals handle sign-in directly)
   const login = () => {
     // This function might be redundant now, but kept for compatibility
-    // console.log("useAuth login function called (may be redundant)"); // Removed
+    console.log("useAuth login function called (may be redundant)");
   };
 
   // Logout function
